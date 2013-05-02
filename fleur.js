@@ -24,8 +24,8 @@ Fleur.UserDataHandler.prototype.handle = function(operation, key, data, src, dst
 };
 */
 
-Fleur.DOMException = function() {
-	this.code = 0;
+Fleur.DOMException = function(code) {
+	this.code = code;
 };
 Fleur.DOMException.INDEX_SIZE_ERR = 1;
 Fleur.DOMException.DOMSTRING_SIZE_ERR = 2;
@@ -206,20 +206,28 @@ Fleur.DOMImplementation.prototype._Features = [
 ];
 Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype) {
 	var doc = new Fleur.Document();
+	if (doctype.ownerDocument || doctype._implementation !== this) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
 	doc.implementation = this;
 	if (qualifiedName !== null) {
 		doc.documentElement = doc.appendChild(doc.createElementNS(namespaceURI, qualifiedName));
 	}
+	doctype.ownerDocument = doc;
 	doc.doctype = doctype;
 	return doc;
 };
 Fleur.DOMImplementation.prototype.createDocumentType = function(qualifiedName, publicId, systemId) {
-	var dt = new Fleur.DocumentType();
-	dt.name = qualifiedName;
+	var dt = new Fleur.DocumentType(), pos = qualifiedName.indexOf(":");
+	if ( pos === 0 || pos === qualifiedName.length - 1 || (!namespaceURI && pos > 0) || (namespaceURI === "http://www.w3.org/XML/1998/namespace" && qualifiedName.substr(0, pos) !== "xml")) {
+		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
+	}
+	dt.nodeName = dt.name = qualifiedName;
 	dt.entities = new Fleur.NamedNodeMap();
 	dt.notations = new Fleur.NamedNodeMap();
 	dt.publicId = publicId;
 	dt.systemId = systemId;
+	dt._implementation = this;
 };
 Fleur.DOMImplementation.prototype.getFeature = function(feature, version) {
 	return this.hasFeature(feature, version) ? this : null;
@@ -238,6 +246,8 @@ Fleur.DOMImplementation.prototype.hasFeature = function(feature, version) {
 	}
 	return false;
 };
+Fleur._DOMImplementation = new Fleur.DOMImplementation();
+Fleur._DOMImplementations.push(Fleur._DOMImplementation);
 
 Fleur.NodeList = function() {};
 Fleur.NodeList.prototype = new Array();
@@ -279,7 +289,7 @@ Fleur.NamedNodeMap.prototype.item = function(index) {
 Fleur.NamedNodeMap.prototype.removeNamedItem = function(name) {
 	var node = this._map[" "].[name];
 	if (!node) {
-		throw Fleur.DOMException.NOT_FOUND_ERR;
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
 	}
 	delete this._map[" "].[name];
 	return node;
@@ -287,12 +297,15 @@ Fleur.NamedNodeMap.prototype.removeNamedItem = function(name) {
 Fleur.NamedNodeMap.prototype.removeNamedItemNS = function(namespaceURI, localName) {
 	var node = this._map[namespaceURI] ? this._map[namespaceURI].[localName] : null;
 	if (!node) {
-		throw Fleur.DOMException.NOT_FOUND_ERR;
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
 	}
 	delete this._map[namespaceURI].[localName];
 	return node;
 };
 Fleur.NamedNodeMap.prototype.setNamedItem = function(arg) {
+	if (arg.ownerDocument !== this.ownerDocument) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
 	return this._map[" "].[arg.localName] = arg;
 };
 Fleur.NamedNodeMap.prototype.setNamedItemNS = function(arg) {
@@ -323,6 +336,16 @@ Fleur.Node.DOCUMENT_POSITION_CONTAINS = 8;
 Fleur.Node.DOCUMENT_POSITION_CONTAINED_BY = 16;
 Fleur.Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 32;
 Fleur.Node.prototype.appendChild = function(newChild) {
+	var n = this;
+	while (n) {
+		if (n === newChild) {
+			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+		}
+		n = n.parentNode || n.ownerElement;
+	}
+	if (this.ownerDocument !== newChild.ownerDocument) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
 	if (this.childNodes.length === 0) {
 		this.firstChild = newChild;
 	}
@@ -362,6 +385,9 @@ Fleur.Node.prototype.compareDocumentPosition = function(other) {
 	var oancestor = other.ownerElement || other.parentNode;
 	var oancestors = new Array();
 	var i = 0, j = 0;
+	if (this.ownerDocument.implementation !== other.ownerDocument.implementation) {
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_SUPPORTED_ERR);
+	}
 	if (this === other) {
 		return 0;
 	}
@@ -411,9 +437,18 @@ Fleur.Node.prototype.hasChildNodes = function() {
 	return this.childNodes && this.childNodes.length !== 0;
 };
 Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
-	var i = 0, l = this.childNodes.length;
-	if (refChild === newChild) {
-		return;
+	var i = 0, l = this.childNodes.length, n = refChild;
+	while (n) {
+		if (n === newChild) {
+			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+		}
+		n = n.parentNode || n.ownerElement;
+	}
+	if (refChild.ownerDocument !== newChild.ownerDocument) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
+	if (refChild.parentNode !== this) {
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
 	}
 	while (i < l) {
 		if (this.childNodes[i] === refChild) {
@@ -430,15 +465,18 @@ Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
 			}
 			newChild.nextSibling = refChild;
 			this.childNodes.splice(i, 0, newChild);
-			return;
+			return newChild;
 		}
 		i++;
 	}
 };
-/*
 Fleur.Node.prototype.isDefaultNamespace = function(namespaceURI) {
+	var pnode = this.parentNode || this.ownerElement || this.documentElement;
+	if (this.nodeType === Fleur.Node.ELEMENT_NODE) {
+		return this.prefix ? this.getAttribute("xmlns") === namespaceURI : this.namespaceURI === namespaceURI;
+	}
+	return pnode ? pnode.isDefaultNamespace(namespaceURI) : false;
 };
-*/
 Fleur.Node.prototype.isEqualNode = function(arg) {
 	return arg === this;
 };
@@ -450,43 +488,82 @@ Fleur.Node.prototype.isSameNode = function(other) {
 Fleur.Node.prototype.isSupported = function(feature, version) {
 };
 */
-/*
 Fleur.Node.prototype.lookupNamespaceURI = function(prefix) {
+	var pnode = this;
+	if (prefix === null || prefix === '') {
+		return null;
+	}
+	if (pnode.nodeType === Fleur.Node.DOCUMENT_NODE) {
+		pnode = pnode.documentElement;
+	}
+	while (pnode) {
+		if (pnode.nodeType === Fleur.Node.ELEMENT_NODE) {
+			//return this.prefix ? this.getAttribute("xmlns") === namespaceURI : this.namespaceURI === namespaceURI;
+		}
+		pnode = pnode.parentNode || pnode.ownerElement;
+	}
+	return null;
 };
-*/
-/*
 Fleur.Node.prototype.lookupPrefix = function(namespaceURI) {
+	var pnode = this;
+	if (namespaceURI === null || namespaceURI === '') {
+		return null;
+	}
+	if (pnode.nodeType === Fleur.Node.DOCUMENT_NODE) {
+		pnode = pnode.documentElement;
+	}
+	while (pnode) {
+		if (pnode.nodeType === Fleur.Node.ELEMENT_NODE) {
+			//return this.prefix ? this.getAttribute("xmlns") === namespaceURI : this.namespaceURI === namespaceURI;
+		}
+		pnode = pnode.parentNode || pnode.ownerElement;
+	}
+	return null;
 };
-*/
 /*
 Fleur.Node.prototype.normalize = function() {
 };
 */
 Fleur.Node.prototype.removeChild = function(oldChild) {
 	var i = 0, l = this.childNodes.length;
-    while (i < l) {
-        if (this.childNodes[i] === oldChild) {
-            if (oldChild.previousSibling) {
-                oldChild.previousSibling.nextSibling = oldChild.nextSibling;
-            } else {
+	if (oldChild.parentNode !== this) {
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+	}
+	while (i < l) {
+		if (this.childNodes[i] === oldChild) {
+			if (oldChild.previousSibling) {
+				oldChild.previousSibling.nextSibling = oldChild.nextSibling;
+			} else {
 				this.firstChild = oldChild.nextSibling;
 			}
-            if (oldChild.nextSibling) {
-                oldChild.nextSibling.previousSibling = oldChild.previousSibling;
-            } else {
-                this.lastChild = oldChild.previousSibling;
+			if (oldChild.nextSibling) {
+				oldChild.nextSibling.previousSibling = oldChild.previousSibling;
+			} else {
+				this.lastChild = oldChild.previousSibling;
             }
 			this.childNodes.splice(i, 1);
 			oldChild.parentNode = null;
 			oldChild.previousSibling = null;
 			oldChild.nextSibling = null;
-			return;
-        }
+			return oldChild;
+		}
 		i++;
     }
 };
 Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
-	var i = 0, l = this.childNodes.length;
+	var i = 0, l = this.childNodes.length, n = this;
+	while (n) {
+		if (n === newChild) {
+			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+		}
+		n = n.parentNode || n.ownerElement;
+	}
+	if (oldChild.parentNode !== this) {
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+	}
+	if (newChild.ownerDocument !== this.ownerDocument) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
 	if (oldChild === newChild) {
 		return;
 	}
@@ -516,6 +593,22 @@ Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 };
 Fleur.Node.prototype.setUserData = function(key, data, handler) {
 	this._userData[key] = data;
+};
+Fleur.Node.prototype._setOwnerDocument = function(document) {
+	if (this.ownerDocument) {
+		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	}
+	this.ownerDocument = document;
+};
+Fleur.Node.prototype._setNodeNameLocalNamePrefix = function(namespaceURI, qualifiedName) {
+	var prefix, name, pos = qualifiedName.indexOf(":");
+	if ( pos === 0 || pos === qualifiedName.length - 1 || (!namespaceURI && pos > 0) || (namespaceURI === "http://www.w3.org/XML/1998/namespace" && qualifiedName.substr(0, pos) !== "xml")) {
+		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
+	}
+	this.nodeName = qualifiedName;
+	this.namespaceURI = namespaceURI;
+	this.prefix = pos > 0 ? qualifiedName.substr(0, pos) : null;
+	this.localName = qualifiedName.substr(pos + 1);
 };
 
 Fleur.Element = function() {
@@ -634,19 +727,19 @@ Fleur.CharacterData = function() {
 };
 Fleur.CharacterData.prototype = new Fleur.Node();
 Fleur.CharacterData.prototype.appendData = function(arg) {
-	this.nodeValue = this.data += arg;
+	this.textContent = this.nodeValue = this.data += arg;
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.deleteData = function(offset, count) {
-	this.nodeValue = this.data = this.data.substr(0, offset) + this.data.substr(offset + count);
+	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + this.data.substr(offset + count);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.insertData = function(offset, data) {
-	this.nodeValue = this.data = this.data.substr(0, offset) + data + this.data.substr(offset);
+	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + data + this.data.substr(offset);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.replaceData = function(offset, count, arg) {
-	this.nodeValue = this.data = this.data.substr(0, offset) + arg + this.data.substr(offset + count);
+	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + arg + this.data.substr(offset + count);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.substringData = function(offset, count) {
@@ -655,19 +748,25 @@ Fleur.CharacterData.prototype.substringData = function(offset, count) {
 
 Fleur.Text = function() {
 	this.nodeType = Fleur.Node.TEXT_NODE;
+	this.nodeName = "#text";
 };
 Fleur.Text.prototype = new Fleur.CharacterData();
 /*
 Fleur.Text.prototype.replaceWholeText = function(content) {
 };
 */
-/*
 Fleur.Text.prototype.splitText = function(offset) {
+	var t = this.cloneNode(true);
+	t.deleteData(0, offset);
+	this.deleteData(offset, this.length - offset);
+	if (this.parentNode) {
+		this.parentNode.insertBefore(t, this.nextSibling);
+	return t;
 };
-*/
 
 Fleur.CDATASection = function() {
 	this.nodeType = Fleur.Node.CDATA_NODE;
+	this.nodeName = "#cdata-section";
 };
 Fleur.CDATASection.prototype = new Fleur.CharacterData();
 
@@ -688,17 +787,34 @@ Fleur.ProcessingInstruction.prototype = new Fleur.Node();
 
 Fleur.Comment = function() {
 	this.nodeType = Fleur.Node.COMMENT_NODE;
+	this.nodeName = "#comment";
 };
 Fleur.Comment.prototype = new Fleur.CharacterData();
 
 Fleur.Document = function() {
 	this.nodeType = Fleur.Node.DOCUMENT_NODE;
+	this.nodeName = "#document";
+	this._elementById = {};
+	this._elementsByTagName = {
+		" ": {}
+	};
 };
 Fleur.Document.prototype = new Fleur.Node();
-/*
 Fleur.Document.prototype.adoptNode = function(source) {
+	var ic = 0, lc = source.childNodes ? source.childNodes.length : 0, ia = 0, la = source.attributes ? source.attributes.length : 0, n;
+	if (source.nodeType === Fleur.Node.DOCUMENT_NODE || source.nodeType === Fleur.Node.DOCUMENT_TYPE_NODE) {
+		throw new Fleur.DOMException(Fleur.DOMException.NOT_SUPPORTED_ERR);
+	}
+	source.ownerDocument = this;
+	while (ia < la) {
+		this.adoptNode(source.attributes.item(ia));
+		ia++;
+	}
+	while (ic < lc) {
+		this.adoptNode(source.childNodes[ic]);
+		ic++;
+	}
 };
-*/
 Fleur.Document.prototype.createAttribute = function(name) {
 	return this.createAttributeNS(null, name);
 };
@@ -723,6 +839,9 @@ Fleur.Document.prototype.createComment = function(data) {
 	return node;
 };
 Fleur.Document.prototype.createDocumentFragment = function() {
+	var node = new Fleur.DocumentFragment();
+	node._setOwnerDocument(this);
+	return node;
 };
 Fleur.Document.prototype.createElement = function(tagName) {
 	return this.createElementNS(null, tagName);
@@ -731,39 +850,41 @@ Fleur.Document.prototype.createElementNS = function(namespaceURI, qualifiedName)
 	var node = new Fleur.Element();
 	node._setOwnerDocument(this);
 	node._setNodeNameLocalNamePrefix(namespaceURI, qualifiedName);
-	node.name = qualifiedName;
+	node.tagName = qualifiedName;
 	node.childNodes = new Fleur.NodeList();
 	node.attributes = new Fleur.NamedNodeMap();
 	node.textContent = node.nodeValue = "";
 	return node;
 };
-/*
 Fleur.Document.prototype.createEntityReference = function(name) {
+	var node = new Fleur.EntityReference();
+	node._setOwnerDocument(this);
+	node._setNodeNameLocalNamePrefix(null, name);
+	node.nodeName = name;
+	node.childNodes = new Fleur.NodeList();
+	node.textContent = node.nodeValue = "";
+	return node;
 };
-*/
 Fleur.Document.prototype.createProcessingInstruction = function(target, data) {
 	var node = new Fleur.ProcessingInstruction();
 	node._setOwnerDocument(this);
-	node.target = target;
-	node.data = data;
+	node.nodeName = node.target = target;
+	node.textContent = node.nodeValue = node.data = data;
 };
 Fleur.Document.prototype.createTextNode = function(data) {
 	var node = new Fleur.Text();
 	node._setOwnerDocument(this);
-	node.textContent = node.nodeValue = data;
+	node.appendData(data);
 };
-/*
 Fleur.Document.prototype.getElementById = function(elementId) {
+	return this._elementById[elementId];
 };
-*/
-/*
 Fleur.Document.prototype.getElementsByTagName = function(tagName) {
+	return this._elementsByTagName[" "].[tagname];
 };
-*/
-/*
 Fleur.Document.prototype.getElementsByTagNameNS = function(namespaceURI, localName) {
+	return this._elementsByTagName[namespaceURI] ? this._elementsByTagName[namespaceURI].[localName] : null;
 };
-*/
 /*
 Fleur.Document.prototype.importNode = function(importedNode, deep) {
 };
@@ -784,6 +905,7 @@ Fleur.DocumentType.prototype = new Fleur.Node();
 
 Fleur.DocumentFragment = function() {
 	this.nodeType = Fleur.Node.DOCUMENT_FRAGMENT_NODE;
+	this.nodeName = "#document-fragment";
 };
 Fleur.DocumentFragment.prototype = new Fleur.Node();
 
