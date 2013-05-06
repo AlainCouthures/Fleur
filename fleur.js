@@ -206,15 +206,18 @@ Fleur.DOMImplementation.prototype._Features = [
 ];
 Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype) {
 	var doc = new Fleur.Document();
-	if (doctype.ownerDocument || doctype._implementation !== this) {
+	if (doctype && (doctype.ownerDocument || doctype._implementation !== this)) {
 		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
 	}
 	doc.implementation = this;
+	doc.ownerDocument = doc;
 	if (qualifiedName !== null) {
 		doc.documentElement = doc.appendChild(doc.createElementNS(namespaceURI, qualifiedName));
 	}
-	doctype.ownerDocument = doc;
-	doc.doctype = doctype;
+	if (doctype) {
+		doctype.ownerDocument = doc;
+		doc.doctype = doctype;
+	}
 	return doc;
 };
 Fleur.DOMImplementation.prototype.createDocumentType = function(qualifiedName, publicId, systemId) {
@@ -540,7 +543,7 @@ Fleur.Node.prototype.removeChild = function(oldChild) {
 				oldChild.nextSibling.previousSibling = oldChild.previousSibling;
 			} else {
 				this.lastChild = oldChild.previousSibling;
-            }
+			}
 			this.childNodes.splice(i, 1);
 			oldChild.parentNode = null;
 			oldChild.previousSibling = null;
@@ -548,7 +551,7 @@ Fleur.Node.prototype.removeChild = function(oldChild) {
 			return oldChild;
 		}
 		i++;
-    }
+	}
 };
 Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 	var i = 0, l = this.childNodes.length, n = this;
@@ -897,6 +900,175 @@ Fleur.Document.prototype.normalizeDocument = function() {
 Fleur.Document.prototype.renameNode = function(n, namespaceURI, qualifiedName) {
 };
 */
+Fleur.Node.prototype._parseXMLFromString = function(s) {
+	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = new Array(), doc = this.ownerDocument currnode = this, c,
+		seps_pi = " \t\n\r?", seps_close = " \t\n\r>", seps_elt = " \t\n\r/>", seps_attr = " \t\n\r=", seps_value = " \t\n\r'\"" seps = " \t\n\r",
+		n, namespaces = {}, newnamespaces, pindex, prefix, localName;
+	while (offset !== end) {
+		index = s.indexOf("<", offset);
+		if (index !== 0) {
+			if (index === -1) {
+				index = end;
+			}
+			currnode.appendChild(doc.createTextNode(s.substring(offset, index - 1)));
+			if (index === end) {
+				break;
+			}
+			offset = index - 1;
+		}
+		offset++;
+		if (s.charAt(offset) === "!") {
+			offset++;
+			if (s.substr(offset, 2) === "--") {
+				offset += 2;
+				index = s.indexOf("-->");
+				if (index !== 0) {
+					if (index === -1) {
+						index = end;
+					}
+					currnode.appendChild(doc.createComment(s.substring(offset, index - 1)));
+					if (index === end) {
+						break;
+					}
+					offset = index - 1;
+				}
+				offset += 3;
+			} else if (s.substr(offset, 7) === "[CDATA[") {
+				offset += 7;
+				index = s.indexOf("]]>");
+				if (index !== 0) {
+					if (index === -1) {
+						index = end;
+					}
+					currnode.appendChild(doc.createCDATASection(s.substring(offset, index - 1)));
+					if (index === end) {
+						break;
+					}
+					offset = index - 1;
+				}
+				offset += 3;
+			} else {
+			}
+		} else if (s.charAt(offset) === "?" {
+			offset++;
+			c = s.charAt(offset++);
+			name = "";
+			while (seps_pi.indexOf(c) === -1) {
+				name += c;
+				c = s.charAt(offset++);
+			}
+			index = s.indexOf("?>", offset - 1);
+			if (index === -1) {
+				index = end;
+			}
+			if (name === "xml") {
+			} else if (name !== "") {
+				currnode.appendChild(doc.createProcessingInstruction(name, index === offset - 1 ? "" : s.substring(offset, index - 1)));
+			}
+			if (index === end) {
+				break;
+			}
+			offset = index + 2;
+		} else if (s.charAt(offset) === "/" {
+			offset++;
+			c = s.charAt(offset++);
+			name = "";
+			while (seps_close.indexOf(c) === -1 && offset <= end) {
+				name += c;
+				c = s.charAt(offset++);
+			}
+			while (parents.length != 0) {
+				n = parents.pop();
+				if (name === n.nodeName) {
+					namespaces = n.namespaces;
+					break;
+				}
+			}
+			currnode = parents.length !== 0 ? parents[parents.length - 1] : this;
+			offset = s.indexOf(">", offset) + 1;
+			if (offset === 0) {
+				break;
+			}
+		} else {
+			c = s.charAt(offset++);
+			name = "";
+			while (seps_elt.indexOf(c) === -1 && offset <= end) {
+				name += c;
+				c = s.charAt(offset++);
+			}
+			index = s.indexOf(">", offset - 1);
+			if (name !== "") {
+				newnamespaces = namespaces;
+				attrs = {};
+				while (true) {
+					c = s.charAt(offset++);
+					while (seps.indexOf(c) !== -1) {
+						c = s.charAt(offset++);
+					}
+					if (c === "/" || c === ">" || offset === end) {
+						break;
+					}
+					attrname = "";
+					while (seps_attr.indexOf(c) === -1 && offset <= end) {
+						attrname += c;
+						c = s.charAt(offset++);
+					}
+					while (seps.indexOf(c) !== -1) {
+						c = s.charAt(offset++);
+					}
+					if (c === "=") {
+						c = s.charAt(offset++);
+						while (seps.indexOf(c) !== -1) {
+							c = s.charAt(offset++);
+						}
+						attrvalue = "";
+						if (c === "'" || c === "\"") {
+							attrvalue = s.substring(offset, Math.min(index -1, s.indexOf(c, offset)));
+						} else {
+							while (seps_elt.indexOf(c) === -1 && offset <= end) {
+								attrvalue += c;
+								c = s.charAt(offset++);
+							}
+						}
+					} else {
+						attrvalue = attrname;
+					}
+					pindex = attrname.indexOf(":");
+					prefix = pindex !== -1 ? name.substr(0, pindexOf(":")) : " ";
+					localName = pindex !== -1 ? attrname.substr(pindex + 1) : attrname
+					attrs[prefix].[localName] = attrvalue;
+					if (prefix === "xmlns") {
+						newnamespaces[localName] = attrvalue;
+					} else if (prefix === " " && localName === "xmlns") {
+						newnamespaces[" "] = attrvalue;
+					}
+				}
+				pindex = name.indexOf(":");
+				eltnode = doc.createElementNS(newnamespaces[pindex !== -1 ? name.substr(0, pindexOf(":")) : " "], name);
+				for (prefix in attrs) {
+					if (attrs.hasOwnProperty(prefix)) {
+						for (attrname in attrs[prefix]) {
+							if (attrs[prefix].hasOwnProperty(attrname)) {
+								attrnode = doc.createAttributeNS(newnamespaces[prefix], prefix + ":" + name)
+								attrnode.appendChild(doc.createTextNode(attrvalue));
+								eltnode.setAttributeNode(attrnode);
+							}
+						}
+					}
+				}
+				currnode.appendChild(eltnode);
+				if (s.charAt(index - 1) !== "/") {
+					parents.push({nodeName: name, namespaces: namespaces});
+					namespaces = newnamespaces;
+				}
+			}
+			offset = index + 1;
+			if (offset === 0) {
+				break;
+			}
+		}
+	}
+}
 
 Fleur.DocumentType = function() {
 	this.nodeType = Fleur.Node.DOCUMENT_TYPE_NODE;
@@ -912,9 +1084,15 @@ Fleur.DocumentFragment.prototype = new Fleur.Node();
 Fleur.Nodes = function() {};
 
 Fleur.DOMParser = function() {};
-/*
 Fleur.DOMParser.prototype.parseFromString = function(s, mediatype) {
+	var doc, impl, domSource = new Fleur.DOMImplementationSource();
+	impl = domSource.getImplementation("XML");
+	doc = impl.createDocument();
+	switch(mediatype) {
+		default:
+			doc._parseXMLFromString(s);
+	}
+	return doc;
 };
-*/
 
 }());
