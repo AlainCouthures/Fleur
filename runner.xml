@@ -1,0 +1,59 @@
+<?xml-stylesheet href="xsltforms/xsltforms.xsl" type="text/xsl"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:xf="http://www.w3.org/2002/xforms" xmlns:ev="http://www.w3.org/2001/xml-events">
+	<head>
+		<title>Test Runner</title>
+		<!--script type="text/javascript" src="fleur.js"/-->
+		<xf:model>
+			<xf:instance id="alltests" src="W3CTestSuite/level2/core/alltests.xml"/>
+			<xf:instance id="source">
+				<test xmlns=""/>
+			</xf:instance>
+			<xf:instance id="test">
+				<test xmlns="">
+					<href/>
+					<js/>
+					<html>
+						<head>
+							<script type="text/javascript"></script>
+						</head>
+						<body>
+							<h1 id="status">Unknown</h1>
+							<pre>Unknown</pre>
+							<pre style="color:blue">Unknown</pre>
+							<script type="text/javascript">
+								document.getElementById("status").innerHTML = status;
+								document.getElementById("status").style.color = status === "OK" ? "green" : "red";
+							</script>
+						</body>
+					</html>
+					<page/>
+				</test>
+			</xf:instance>
+			<xf:submission id="get_test" method="get" replace="instance" instance="source" serialization="none" mode="synchronous">
+				<xf:resource value="concat('W3CTestSuite/level2/core/',instance('alltests')/*[local-name() = 'suite.member'][position() = index('members')]/@href)"/>
+				<xf:action ev:event="xforms-submit-done">
+					<xf:setvalue ref="instance('test')/js" value="transform(instance('source'),'test-to-ecmascript.xsl',false())"/>
+					<xf:setvalue ref="instance('test')/html/head/script" value="concat('var status = ',/test/js,';')"/>
+					<xf:setvalue ref="instance('test')/html/body/pre[1]" value="/test/js"/>
+					<xf:setvalue ref="instance('test')/html/body/pre[2]" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&amp;lt;'),'&gt;','&amp;gt;')"/>
+					<xf:setvalue ref="instance('test')/page" value="concat('&lt;!DOCTYPE html&gt;',serialize(../html))"/>
+					<xf:load ref="instance('test')/page" show="new"/>
+				</xf:action>
+				<xf:message ev:event="xforms-submit-error">Error loading the test file.</xf:message>
+			</xf:submission>
+		</xf:model>
+	</head>
+	<body>
+		<h1>Test Runner</h1>
+		<xf:repeat id="members" ref="instance('alltests')/*[local-name() = 'suite.member']">
+			<xf:trigger>
+				<xf:label>Load in new tab</xf:label>
+				<xf:action ev:event="DOMActivate">
+					<xf:setvalue ref="instance('test')/href" value="@href"/>
+					<xf:send submission="get_test"/>
+				</xf:action>
+			</xf:trigger>
+			<xf:output value="substring-before(@href, '.xml')"/>
+		</xf:repeat> 
+	</body>
+</html>

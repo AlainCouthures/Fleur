@@ -1,0 +1,18 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<title>Fleur Test Page</title>
+		<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+	</head>
+	<body>
+		<script src="fleur.js">/* */</script>
+		<script type="text/javascript">
+			var l = new Fleur.DOMStringList();
+			l.push("toto");
+			l.push("titi");
+			l.push("tutu");
+			alert(l.contains("tati") === true ? "vrai" : "faux");
+			alert(l.contains("tutu") === true ? "vrai" : "faux");
+		</script>
+	</body>
+</html>
