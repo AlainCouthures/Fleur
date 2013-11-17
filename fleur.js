@@ -79,8 +79,8 @@ Fleur.DOMConfiguration = function() {
 		"validate-if-schema": false,
 		"well-formed": true
 	};
-	this.parametersNames = new DOMStringList();
-	for (p in this._parameters) {
+	this.parametersNames = new Fleur.DOMStringList();
+	for (var p in this._parameters) {
 		if (this._parameters.hasOwnProperty(p)) {
 			this.parametersNames.push(p);
 		}
@@ -150,7 +150,7 @@ Fleur.DOMImplementationList.prototype.item = function(index) {
 Fleur._DOMImplementations = new Fleur.DOMImplementationList();
 Fleur.DOMImplementationSource = function() {};
 Fleur.DOMImplementationSource.prototype.getDOMImplementation = function(features) {
-	var f, l0 = Fleur._DOMImplementations.length, l1, i = 0, j = 0, version = new RegExp("^[0-9]*\.[0-9]*$", "g");
+	var f, l0 = Fleur._DOMImplementations.length, l1, i = 0, j = 0, version = /^[0-9]*\.[0-9]*$/;
 	f = features.split(" ");
 	l1 = f.length;
 	while (j < l1) {
@@ -163,17 +163,17 @@ Fleur.DOMImplementationSource.prototype.getDOMImplementation = function(features
 	}
 	while (i < l0) {
 		j = 0;
-		while (j < l1 && Fleur._DOMImplementations.item(j).hasFeature(f[j], f[j + 1])) {
+		while (j < l1 && Fleur._DOMImplementations.item(i).hasFeature(f[j], f[j + 1])) {
 			j += 2;
 		}
 		if (j >= l1) {
-			return Fleur._DOMImplementations.item(j);
+			return Fleur._DOMImplementations.item(i);
 		}
 		i++;
 	}
 };
 Fleur.DOMImplementationSource.prototype.getDOMImplementationList = function(features) {
-	var f, l0 = Fleur._DOMImplementations.length, l1, i = 0, j = 0, version = new RegExp("^[0-9]*\.[0-9]*$", "g"), list = new Fleur.DOMImplementationList();
+	var f, l0 = Fleur._DOMImplementations.length, l1, i = 0, j = 0, version = /^[0-9]*\.[0-9]*$/g, list = new Fleur.DOMImplementationList();
 	f = features.split(" ");
 	l1 = f.length;
 	while (j < l1) {
@@ -186,11 +186,11 @@ Fleur.DOMImplementationSource.prototype.getDOMImplementationList = function(feat
 	}
 	while (i < l0) {
 		j = 0;
-		while (j < l1 && Fleur._DOMImplementations.item(j).hasFeature(f[j], f[j + 1])) {
+		while (j < l1 && Fleur._DOMImplementations.item(i).hasFeature(f[j], f[j + 1])) {
 			j += 2;
 		}
 		if (j >= l1) {
-			list.push(Fleur._DOMImplementations.item(j));
+			list.push(Fleur._DOMImplementations.item(i));
 		}
 		i++;
 	}
@@ -201,7 +201,9 @@ Fleur.DOMImplementation = function() {};
 Fleur.DOMImplementation.prototype._Features = [
 	["core", "3.0"],
 	["core", "2.0"],
+	["core", "1.0"],
 	["xml", "3.0"],
+	["xml", "1.0"],
 	["xml", "2.0"]
 ];
 Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype) {
@@ -210,8 +212,8 @@ Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualif
 		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
 	}
 	doc.implementation = this;
-	doc.ownerDocument = doc;
-	if (qualifiedName !== null) {
+	//doc.ownerDocument = doc;
+	if (qualifiedName) {
 		doc.documentElement = doc.appendChild(doc.createElementNS(namespaceURI, qualifiedName));
 	}
 	if (doctype) {
@@ -221,16 +223,19 @@ Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualif
 	return doc;
 };
 Fleur.DOMImplementation.prototype.createDocumentType = function(qualifiedName, publicId, systemId) {
-	var dt = new Fleur.DocumentType(), pos = qualifiedName.indexOf(":");
+	var dt = new Fleur.DocumentType(), pos = qualifiedName.indexOf(":"), namespaceURI = "";
 	if ( pos === 0 || pos === qualifiedName.length - 1 || (!namespaceURI && pos > 0) || (namespaceURI === "http://www.w3.org/XML/1998/namespace" && qualifiedName.substr(0, pos) !== "xml")) {
 		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
 	}
 	dt.nodeName = dt.name = qualifiedName;
 	dt.entities = new Fleur.NamedNodeMap();
+	dt.entities.ownernode = dt;
 	dt.notations = new Fleur.NamedNodeMap();
+	dt.notations.ownerNode = dt;
 	dt.publicId = publicId;
 	dt.systemId = systemId;
 	dt._implementation = this;
+	return dt;
 };
 Fleur.DOMImplementation.prototype.getFeature = function(feature, version) {
 	return this.hasFeature(feature, version) ? this : null;
@@ -258,67 +263,96 @@ Fleur.NodeList.prototype.item = function(index) {
 	return this[index];
 };
 
-Fleur.NamedNodeMap = function() {
-	this.length = 0;
-	this._map = {
-		" ": {}
-	};
-};
+Fleur.NamedNodeMap = function() {};
+Fleur.NamedNodeMap.prototype = new Array();
 Fleur.NamedNodeMap.prototype.getNamedItem = function(name) {
-	return this._map[" "].[name];
-};
-Fleur.NamedNodeMap.prototype.getNamedItemNS = function(namespaceURI, localName) {
-	return this._map[namespaceURI] ? this._map[namespaceURI].[localName] : null;
-};
-Fleur.NamedNodeMap.prototype.item = function(index) {
-	var ns, n;
-	if (typeof index !== "number" || index < 0) {
-		return null;
-	}
-	for (ns in this._map) {
-		if (this._map.hasOwnProperty(ns)) {
-			for (n in this._map[ns]) {
-				if (this._map[ns].hasOwnProperty(n)) {
-					if (index === 0) {
-						return this._map[ns].[n];
-					}
-					index--;
-				}
-			}
+	var i = 0, l = this.length;
+	while (i < l) {
+		if (this[i].localName === name) {
+			return this[i];
 		}
+		i++;
 	}
 	return null;
 };
-Fleur.NamedNodeMap.prototype.removeNamedItem = function(name) {
-	var node = this._map[" "].[name];
-	if (!node) {
-		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+Fleur.NamedNodeMap.prototype.getNamedItemNS = function(namespaceURI, localName) {
+	var i = 0, l = this.length;
+	while (i < l) {
+		if (this[i].namespaceURI === namespaceURI && this[i].localName === name) {
+			return this[i];
+		}
+		i++;
 	}
-	delete this._map[" "].[name];
-	return node;
+	return null;
+};
+Fleur.NamedNodeMap.prototype.item = function(index) {
+	return this[index];
+};
+Fleur.NamedNodeMap.prototype.removeNamedItem = function(name) {
+	var i = 0, l = this.length, node;
+	while (i < l) {
+		if (this[i].localName === name) {
+			node = this[i];
+			this.splice(i, 1);
+			return node;
+		}
+		i++;
+	}
+	throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+	return null;
 };
 Fleur.NamedNodeMap.prototype.removeNamedItemNS = function(namespaceURI, localName) {
-	var node = this._map[namespaceURI] ? this._map[namespaceURI].[localName] : null;
-	if (!node) {
-		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+	var i = 0, l = this.length, node;
+	while (i < l) {
+		if (this[i].namespaceURI === namespaceURI && this[i].localName === localName) {
+			node = this[i];
+			this.splice(i, 1);
+			return node;
+		}
+		i++;
 	}
-	delete this._map[namespaceURI].[localName];
-	return node;
+	throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+	return null;
 };
 Fleur.NamedNodeMap.prototype.setNamedItem = function(arg) {
-	if (arg.ownerDocument !== this.ownerDocument) {
-		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+	var i = 0, l = this.length, node;
+	if (arg.ownerElement && arg.ownerElement !== this.ownerNode) {
+		throw new Fleur.DOMException(Fleur.DOMException.INUSE_ATTRIBUTE_ERR);
 	}
-	return this._map[" "].[arg.localName] = arg;
+	while (i < l) {
+		if (this[i].localName === arg.localName) {
+			node = this[i];
+			this.splice(i, 1);
+			this.push(arg);
+			return node;
+		}
+		i++;
+	}
+	this.push(arg);
+	return null;
 };
 Fleur.NamedNodeMap.prototype.setNamedItemNS = function(arg) {
-	return arg.namespaceURI ? (this._map[arg.namespaceURI].[arg.localName] = arg) : (this._map[" "].[arg.localName] = arg);
+	var i = 0, l = this.length, node;
+	if (arg.ownerElement && arg.ownerElement !== this.ownerNode) {
+		throw new Fleur.DOMException(Fleur.DOMException.INUSE_ATTRIBUTE_ERR);
+	}
+	while (i < l) {
+		if (this[i].namespaceURI === arg.namespaceURI && this[i].localName === arg.localName) {
+			node = this[i];
+			this.splice(i, 1);
+			this.push(arg);
+			return node;
+		}
+		i++;
+	}
+	this.push(arg);
+	return null;
 };
 
 Fleur.Node = function() {
 	this._userData = {};
 	this.childNodes = new Fleur.NodeList();
-	this.attributes = new Fleur.NamedNodeMap();
+	this.children = new Fleur.NodeList();
 };
 Fleur.Node.ELEMENT_NODE = 1;
 Fleur.Node.ATTRIBUTE_NODE = 2;
@@ -338,32 +372,64 @@ Fleur.Node.DOCUMENT_POSITION_FOLLOWING = 4;
 Fleur.Node.DOCUMENT_POSITION_CONTAINS = 8;
 Fleur.Node.DOCUMENT_POSITION_CONTAINED_BY = 16;
 Fleur.Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 32;
+Fleur.Node.QNameReg = /^([_A-Z][-.\w]*:)?[_A-Z][-.\w]*$/i;
 Fleur.Node.prototype.appendChild = function(newChild) {
-	var n = this;
-	while (n) {
-		if (n === newChild) {
-			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+	//console.log((this.nodeType === Fleur.Node.ATTRIBUTE_NODE ? this.ownerElement.nodeName + "[" + this.ownerElement.childNodes.length + "]/@" + this.nodeName : this.nodeName + "[" + this.childNodes.length + "]") + " -> " + (newChild.nodeName === "#text" ? '"' + newChild.nodeValue.replace("\n","\\n") + '"' : newChild.nodeName + "[" + newChild.childNodes.length + "]"));
+	var n = this, i = 0, l;
+	if (newChild.nodeType === Fleur.Node.DOCUMENT_FRAGMENT_NODE) {
+		l = newChild.childNodes.length;
+		while (i < l) {
+			this.appendChild(newChild.childNodes[0]);
+			i++;
 		}
-		n = n.parentNode || n.ownerElement;
+	} else if (newChild.nodeType === Fleur.Node.ATTRIBUTE_NODE || (this.nodeType === Fleur.Node.ATTRIBUTE_NODE && newChild.nodeType !== Fleur.Node.TEXT_NODE)) {
+		throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+	} else {
+		while (n) {
+			if (n === newChild) {
+				throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+			}
+			n = n.parentNode || n.ownerElement;
+		}
+		if (newChild.ownerDocument && (this.ownerDocument || this) !== newChild.ownerDocument) {
+			throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+		}
+		if (newChild.parentNode) {
+			newChild.parentNode.removeChild(newChild);
+		}
+		if (this.childNodes.length === 0) {
+			this.firstChild = newChild;
+		}
+		newChild.previousSibling = this.lastChild;
+		newChild.nextSibling = null;
+		if (this.lastChild) {
+			this.lastChild.nextSibling = newChild;
+		}
+		newChild.parentNode = this;
+		this.lastChild = newChild;
+		this.childNodes.push(newChild);
+		if (newChild.nodeType === Fleur.Node.ELEMENT_NODE) {
+			this.children.push(newChild);
+		}
 	}
-	if (this.ownerDocument !== newChild.ownerDocument) {
-		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
-	}
-	if (this.childNodes.length === 0) {
-		this.firstChild = newChild;
-	}
-	newChild.previousSibling = this.lastChild;
-	newChild.nextSibling = null;
-	if (this.lastChild) {
-		this.lastChild.nextSibling = newChild;
-	}
-	newChild.parentNode = this;
-	this.lastChild = newChild;
-	this.childNodes.push(newChild);
+	return newChild;
 };
 Fleur.Node.prototype.cloneNode = function(deep) {
 	var i = 0, li = 0, j = 0, lj = 0, clone = null;
 	switch (this.nodeType) {
+		case Fleur.Node.TEXT_NODE:
+			clone = this.ownerDocument.createTextNode(this.data);
+			break;
+		case Fleur.Node.CDATA_NODE:
+			clone = this.ownerDocument.createCDATASection(this.data);
+			break;
+		case Fleur.Node.ATTRIBUTE_NODE:
+			clone = this.ownerDocument.createAttributeNS(this.namespaceURI, this.nodeName);
+			lj = this.childNodes.length;
+			while (j < lj) {
+				clone.appendChild(this.childNodes[j++].cloneNode(true));
+			}
+			break;
 		case Fleur.Node.ELEMENT_NODE:
 			clone = this.ownerDocument.createElementNS(this.namespaceURI, this.nodeName);
 			li = this.attributes.length;
@@ -384,9 +450,9 @@ Fleur.Node.prototype.cloneNode = function(deep) {
 };
 Fleur.Node.prototype.compareDocumentPosition = function(other) {
 	var nancestor = this.ownerElement || this.parentNode;
-	var nancestors = new Array();
+	var nancestors = [];
 	var oancestor = other.ownerElement || other.parentNode;
-	var oancestors = new Array();
+	var oancestors = [];
 	var i = 0, j = 0;
 	if (this.ownerDocument.implementation !== other.ownerDocument.implementation) {
 		throw new Fleur.DOMException(Fleur.DOMException.NOT_SUPPORTED_ERR);
@@ -440,37 +506,65 @@ Fleur.Node.prototype.hasChildNodes = function() {
 	return this.childNodes && this.childNodes.length !== 0;
 };
 Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
-	var i = 0, l = this.childNodes.length, n = refChild;
-	while (n) {
-		if (n === newChild) {
-			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+	var i = 0, l = this.childNodes.length, n = refChild, ln;
+	if (newChild.nodeType === Fleur.Node.DOCUMENT_FRAGMENT_NODE) {
+		ln = newChild.childNodes.length;
+		while (i < ln) {
+			this.insertBefore(newChild.childNodes[0], refChild);
+			i++;
 		}
-		n = n.parentNode || n.ownerElement;
-	}
-	if (refChild.ownerDocument !== newChild.ownerDocument) {
-		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
-	}
-	if (refChild.parentNode !== this) {
-		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
-	}
-	while (i < l) {
-		if (this.childNodes[i] === refChild) {
+		return newChild;
+	} else if (newChild.nodeType === Fleur.Node.ATTRIBUTE_NODE || (this.nodeType === Fleur.Node.ATTRIBUTE_NODE && newChild.nodeType !== Fleur.Node.TEXT_NODE)) {
+		throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+	} else {
+		if (refChild) {
+			while (n) {
+				if (n === newChild) {
+					throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+				}
+				n = n.parentNode || n.ownerElement;
+			}
+			if (refChild.ownerDocument !== newChild.ownerDocument) {
+				throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
+			}
+			if (refChild.parentNode !== this) {
+				throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
+			}
+			if (newChild.parentNode) {
+				newChild.parentNode.removeChild(newChild);
+			}
+			while (i < l) {
+				if (this.childNodes[i] === refChild) {
+					newChild.parentNode = this;
+					newChild.previousSibling = refChild.previousSibling;
+					refChild.previousSibling = newChild;
+					if (newChild.previousSibling) {
+						newChild.previousSibling.nextSibling = newChild;
+					} else {
+						this.firstChild = newChild;
+					}
+					newChild.nextSibling = refChild;
+					this.childNodes.splice(i, 0, newChild);
+					return newChild;
+				}
+				i++;
+			}
+		} else {
 			if (newChild.parentNode) {
 				newChild.parentNode.removeChild(newChild);
 			}
 			newChild.parentNode = this;
-			newChild.previousSibling = refChild.previousSibling;
-			refChild.previousSibling = newChild;
-			if (newNode.previousSibling) {
-				newNode.previousSibling.nextSibling = newChild;
+			if (this.childNodes.length !== 0) {
+				newChild.previousSibling = this.childNodes[this.childNodes.length - 1];
+				this.childNodes[this.childNodes.length - 1].nextSibling = newChild;
 			} else {
-				this.firstChild = newChild;
+				newChild.previousSibling = null;
 			}
-			newChild.nextSibling = refChild;
-			this.childNodes.splice(i, 0, newChild);
+			newChild.nextSibling = null;
+			this.childNodes.push(newChild);
+			this.lastChild = newChild;
 			return newChild;
 		}
-		i++;
 	}
 };
 Fleur.Node.prototype.isDefaultNamespace = function(namespaceURI) {
@@ -523,10 +617,27 @@ Fleur.Node.prototype.lookupPrefix = function(namespaceURI) {
 	}
 	return null;
 };
-/*
 Fleur.Node.prototype.normalize = function() {
+	var i = 0, j;
+	while (i < this.childNodes.length) {
+		switch (this.childNodes[i].nodeType) {
+			case Fleur.Node.ATTRIBUTE_NODE:
+			case Fleur.Node.ELEMENT_NODE:
+				this.childNodes[i].normalize();
+				break;
+			case Fleur.Node.TEXT_NODE:
+				while (i + 1 < this.childNodes.length) {
+					if (this.childNodes[i + 1].nodeType !== Fleur.Node.TEXT_NODE) {
+						break;
+					}
+					this.childNodes[i].appendData(this.childNodes[i + 1].nodeValue);
+					this.removeChild(this.childNodes[i + 1]);
+				}
+				break;
+		}
+		i++;
+	}
 };
-*/
 Fleur.Node.prototype.removeChild = function(oldChild) {
 	var i = 0, l = this.childNodes.length;
 	if (oldChild.parentNode !== this) {
@@ -555,6 +666,9 @@ Fleur.Node.prototype.removeChild = function(oldChild) {
 };
 Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 	var i = 0, l = this.childNodes.length, n = this;
+	if (newChild.nodeType === Fleur.Node.ATTRIBUTE_NODE) {
+		throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
+	}
 	while (n) {
 		if (n === newChild) {
 			throw new Fleur.DOMException(Fleur.DOMException.HIERARCHY_REQUEST_ERR);
@@ -564,11 +678,11 @@ Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 	if (oldChild.parentNode !== this) {
 		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
 	}
-	if (newChild.ownerDocument !== this.ownerDocument) {
+	if (newChild.ownerDocument !== (this.ownerDocument || this)) {
 		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
 	}
 	if (oldChild === newChild) {
-		return;
+		return oldChild;
 	}
 	while (i < l) {
 		if (this.childNodes[i] === oldChild) {
@@ -589,10 +703,11 @@ Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 			oldChild.parentNode = null;
 			oldChild.previousSibling = null;
 			oldChild.nextSibling = null;
-			return;
+			return oldChild;
 		}
 		i++;
 	}
+	return oldChild;
 };
 Fleur.Node.prototype.setUserData = function(key, data, handler) {
 	this._userData[key] = data;
@@ -604,7 +719,7 @@ Fleur.Node.prototype._setOwnerDocument = function(document) {
 	this.ownerDocument = document;
 };
 Fleur.Node.prototype._setNodeNameLocalNamePrefix = function(namespaceURI, qualifiedName) {
-	var prefix, name, pos = qualifiedName.indexOf(":");
+	var pos = qualifiedName.indexOf(":");
 	if ( pos === 0 || pos === qualifiedName.length - 1 || (!namespaceURI && pos > 0) || (namespaceURI === "http://www.w3.org/XML/1998/namespace" && qualifiedName.substr(0, pos) !== "xml")) {
 		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
 	}
@@ -615,9 +730,20 @@ Fleur.Node.prototype._setNodeNameLocalNamePrefix = function(namespaceURI, qualif
 };
 
 Fleur.Element = function() {
+	Fleur.Node.apply(this);
+	this.attributes = new Fleur.NamedNodeMap();
+	this.attributes.ownerNode = this;
 	this.nodeType = Fleur.Node.ELEMENT_NODE;
 };
 Fleur.Element.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.Element.prototype, {
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
 Fleur.Element.prototype.getAttribute = function(name) {
 	return this.getAttributeNS(null, name);
 };
@@ -644,22 +770,28 @@ Fleur.Element.prototype.getAttributeNS = function(namespaceURI, localName) {
 	}
 	return null;
 };
-Fleur.Element.prototype.getElementsByTagNameNS = function(namespaceURI, localName) {
-	var i = 0, l = this.childNodes.length, elts = this.namespaceURI === namespaceURI && this.localName === localName ? [this] : [];
+Fleur.Element.prototype._getElementsByTagNameNS = function(namespaceURI, localName, elts) {
+	var i = 0, l = this.children.length;
+	if ((!namespaceURI || this.namespaceURI === namespaceURI) && (localName === "*" || this.localName === localName)) {
+		elts.push(this);
+	}
 	while (i < l) {
-		elts = elts.concat(this.childNodes[i++].getElementsByTagNameNS(namespaceURI, localName));
+		this.children[i++]._getElementsByTagNameNS(namespaceURI, localName, elts);
+	}
+};
+Fleur.Element.prototype.getElementsByTagNameNS = function(namespaceURI, localName) {
+	var elts = new Fleur.NodeList();
+	var i = 0, l = this.children.length;
+	while (i < l) {
+		this.children[i++]._getElementsByTagNameNS(namespaceURI === "*" ? null : namespaceURI, localName, elts);
 	}
 	return elts;
 };
 Fleur.Element.prototype.getElementsByTagName = function(name) {
-	var i = 0, l = this.childNodes.length, elts = this.nodeName === name ? [this] : [];
-	while (i < l) {
-		elts = elts.concat(this.childNodes[i++].getElementsByTagName(name));
-	}
-	return elts;
+	return this.getElementsByTagNameNS(null, name);
 };
 Fleur.Element.prototype.hasAttribute = function(name) {
-	return this.attributes.getNamedItem(name) !== null;
+	return !!this.attributes.getNamedItem(name);
 };
 Fleur.Element.prototype.hasAttributeNS = function(namespaceURI, localName) {
 	return this.attributes.getNamedItemNS(namespaceURI, localName) !== null;
@@ -682,17 +814,19 @@ Fleur.Element.prototype.setAttribute = function(name, value) {
 		return;
 	}
 	attr = this.ownerDocument.createAttribute(name);
-	attr.parentNode = attr.ownerElement = this;
-	attr.nodeValue = value;
+	attr.ownerElement = this;
+	attr.appendChild(this.ownerDocument.createTextNode(value));
 	this.attributes.setNamedItem(attr);
 };
 Fleur.Element.prototype.setAttributeNode = function(newAttr) {
-	newAttr.parentNode = newAttr.ownerElement = this;
-	this.attributes.setNamedItem(newAttr);
+	var n = this.attributes.setNamedItem(newAttr);
+	newAttr.ownerElement = this;
+	return n;
 };
 Fleur.Element.prototype.setAttributeNodeNS = function(newAttr) {
-	newAttr.parentNode = newAttr.ownerElement = this;
-	this.attributes.setNamedItemNS(newAttr);
+	var n = this.attributes.setNamedItemNS(newAttr);
+	newAttr.ownerElement = this;
+	return n;
 };
 Fleur.Element.prototype.setAttributeNS = function(namespaceURI, qualifiedName, value) {
 	var attr;
@@ -702,7 +836,7 @@ Fleur.Element.prototype.setAttributeNS = function(namespaceURI, qualifiedName, v
 		return;
 	}
 	attr = this.ownerDocument.createAttributeNS(namespaceURI, qualifiedName);
-	attr.parentNode = attr.ownerElement = this;
+	attr.ownerElement = this;
 	attr.nodeValue = value;
 	this.attributes.setNamedItemNS(attr);
 };
@@ -720,9 +854,63 @@ Fleur.Element.prototype.setIdAttributeNode = function(idAttr, isId) {
 */
 
 Fleur.Attr = function() {
+	Fleur.Node.apply(this);
 	this.nodeType = Fleur.Node.ATTRIBUTE_NODE;
 };
 Fleur.Attr.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.Attr.prototype, {
+	nodeValue: {
+		set: function(value) {
+			if (value) {
+				if (!this.firstChild) {
+					this.appendChild(this.ownerDocument.createTextNode(value));
+					return;
+				}
+				this.firstChild.nodeValue = value;
+				return;
+			}
+			if (this.firstChild) {
+				this.removeChild(this.firstChild);
+			}
+		},
+		get: function() {
+			var s = "", i = 0, l = this.childNodes ? this.childNodes.length : 0;
+			while (i < l) {
+				s += this.childNodes[i].nodeValue;
+				i++;
+			}
+			return s;
+		}
+	},
+	specified: {
+		get: function() {
+			return !!this.firstChild;
+		}
+	},
+	value: {
+		set: function(value) {
+			if (value) {
+				if (!this.firstChild) {
+					this.appendChild(this.ownerDocument.createTextNode(value));
+					return;
+				}
+				this.firstChild.nodeValue = value;
+				return;
+			}
+			if (this.firstChild) {
+				this.removeChild(this.firstChild);
+			}
+		},
+		get: function() {
+			var s = "", i = 0, l = this.childNodes ? this.childNodes.length : 0;
+			while (i < l) {
+				s += this.childNodes[i].nodeValue;
+				i++;
+			}
+			return s;
+		}
+	}
+});
 
 Fleur.CharacterData = function() {
 	this.data = "";
@@ -734,18 +922,30 @@ Fleur.CharacterData.prototype.appendData = function(arg) {
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.deleteData = function(offset, count) {
+	if (count < 0 || offset < 0 || this.data.length < offset) {
+		throw new Fleur.DOMException(Fleur.DOMException.INDEX_SIZE_ERR);
+	}
 	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + this.data.substr(offset + count);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.insertData = function(offset, data) {
+	if (offset < 0 || this.data.length < offset) {
+		throw new Fleur.DOMException(Fleur.DOMException.INDEX_SIZE_ERR);
+	}
 	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + data + this.data.substr(offset);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.replaceData = function(offset, count, arg) {
+	if (count < 0 || offset < 0 || this.data.length < offset) {
+		throw new Fleur.DOMException(Fleur.DOMException.INDEX_SIZE_ERR);
+	}
 	this.textContent = this.nodeValue = this.data = this.data.substr(0, offset) + arg + this.data.substr(offset + count);
 	this.length = this.data.length;
 };
 Fleur.CharacterData.prototype.substringData = function(offset, count) {
+	if (count < 0 || offset < 0 || this.data.length < offset) {
+		throw new Fleur.DOMException(Fleur.DOMException.INDEX_SIZE_ERR);
+	}
 	return this.data.substr(offset, count);
 };
 
@@ -754,16 +954,32 @@ Fleur.Text = function() {
 	this.nodeName = "#text";
 };
 Fleur.Text.prototype = new Fleur.CharacterData();
+Object.defineProperties(Fleur.Text.prototype, {
+	nodeValue: {
+		set: function(value) {
+			this.data = value;
+			this.length = value.length;
+		},
+		get: function() {
+			return this.data;
+		}
+	}
+});
 /*
 Fleur.Text.prototype.replaceWholeText = function(content) {
 };
 */
 Fleur.Text.prototype.splitText = function(offset) {
-	var t = this.cloneNode(true);
+	var t;
+	if (offset < 0 || this.data.length < offset) {
+		throw new Fleur.DOMException(Fleur.DOMException.INDEX_SIZE_ERR);
+	} 
+	t = this.cloneNode(true);
 	t.deleteData(0, offset);
 	this.deleteData(offset, this.length - offset);
 	if (this.parentNode) {
 		this.parentNode.insertBefore(t, this.nextSibling);
+	}
 	return t;
 };
 
@@ -779,14 +995,26 @@ Fleur.EntityReference = function() {
 Fleur.EntityReference.prototype = new Fleur.Node();
 
 Fleur.Entity = function() {
+	Fleur.Node.apply(this);
 	this.nodeType = Fleur.Node.ENTITY_NODE;
 };
 Fleur.Entity.prototype = new Fleur.Node();
 
 Fleur.ProcessingInstruction = function() {
+	Fleur.Node.apply(this);
 	this.nodeType = Fleur.Node.PROCESSING_INSTRUCTION_NODE;
 };
 Fleur.ProcessingInstruction.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.ProcessingInstruction.prototype, {
+	nodeValue: {
+		set: function(value) {
+			this.data = value;
+		},
+		get: function() {
+			return this.data;
+		}
+	}
+});
 
 Fleur.Comment = function() {
 	this.nodeType = Fleur.Node.COMMENT_NODE;
@@ -795,6 +1023,7 @@ Fleur.Comment = function() {
 Fleur.Comment.prototype = new Fleur.CharacterData();
 
 Fleur.Document = function() {
+	Fleur.Node.apply(this);
 	this.nodeType = Fleur.Node.DOCUMENT_NODE;
 	this.nodeName = "#document";
 	this._elementById = {};
@@ -803,8 +1032,21 @@ Fleur.Document = function() {
 	};
 };
 Fleur.Document.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.Document.prototype, {
+	documentElement: {
+		get: function() {
+			return this.children[0] ? this.children[0] : null;
+		}
+	},
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
 Fleur.Document.prototype.adoptNode = function(source) {
-	var ic = 0, lc = source.childNodes ? source.childNodes.length : 0, ia = 0, la = source.attributes ? source.attributes.length : 0, n;
+	var ic = 0, lc = source.childNodes ? source.childNodes.length : 0, ia = 0, la = source.attributes ? source.attributes.length : 0;
 	if (source.nodeType === Fleur.Node.DOCUMENT_NODE || source.nodeType === Fleur.Node.DOCUMENT_TYPE_NODE) {
 		throw new Fleur.DOMException(Fleur.DOMException.NOT_SUPPORTED_ERR);
 	}
@@ -822,11 +1064,14 @@ Fleur.Document.prototype.createAttribute = function(name) {
 	return this.createAttributeNS(null, name);
 };
 Fleur.Document.prototype.createAttributeNS = function(namespaceURI, qualifiedName) {
-	var node = new Fleur.Attribute();
+	var node = new Fleur.Attr();
+	if (!Fleur.Node.QNameReg.test(qualifiedName)) {
+		throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
+	}
 	node._setOwnerDocument(this);
 	node._setNodeNameLocalNamePrefix(namespaceURI, qualifiedName);
 	node.name = qualifiedName;
-	node.textContent = node.nodeValue = "";
+	node.textContent = "";
 	return node;
 };
 Fleur.Document.prototype.createCDATASection = function(data) {
@@ -851,12 +1096,15 @@ Fleur.Document.prototype.createElement = function(tagName) {
 };
 Fleur.Document.prototype.createElementNS = function(namespaceURI, qualifiedName) {
 	var node = new Fleur.Element();
+	if (!Fleur.Node.QNameReg.test(qualifiedName)) {
+		throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
+	}
 	node._setOwnerDocument(this);
 	node._setNodeNameLocalNamePrefix(namespaceURI, qualifiedName);
 	node.tagName = qualifiedName;
 	node.childNodes = new Fleur.NodeList();
-	node.attributes = new Fleur.NamedNodeMap();
-	node.textContent = node.nodeValue = "";
+	node.children = new Fleur.NodeList();
+	node.textContent = "";
 	return node;
 };
 Fleur.Document.prototype.createEntityReference = function(name) {
@@ -864,29 +1112,41 @@ Fleur.Document.prototype.createEntityReference = function(name) {
 	node._setOwnerDocument(this);
 	node._setNodeNameLocalNamePrefix(null, name);
 	node.nodeName = name;
-	node.childNodes = new Fleur.NodeList();
-	node.textContent = node.nodeValue = "";
+	node.textContent = "";
 	return node;
 };
 Fleur.Document.prototype.createProcessingInstruction = function(target, data) {
 	var node = new Fleur.ProcessingInstruction();
+	if (!Fleur.Node.QNameReg.test(target)) {
+		throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
+	}
 	node._setOwnerDocument(this);
 	node.nodeName = node.target = target;
-	node.textContent = node.nodeValue = node.data = data;
+	node.textContent = node.data = data;
+	return node;
 };
 Fleur.Document.prototype.createTextNode = function(data) {
 	var node = new Fleur.Text();
 	node._setOwnerDocument(this);
 	node.appendData(data);
+	return node;
 };
 Fleur.Document.prototype.getElementById = function(elementId) {
 	return this._elementById[elementId];
 };
 Fleur.Document.prototype.getElementsByTagName = function(tagName) {
-	return this._elementsByTagName[" "].[tagname];
+	return this.getElementsByTagNameNS(null, tagName);
 };
 Fleur.Document.prototype.getElementsByTagNameNS = function(namespaceURI, localName) {
-	return this._elementsByTagName[namespaceURI] ? this._elementsByTagName[namespaceURI].[localName] : null;
+	var i = 0, l = this.children.length, elts = new Fleur.NodeList();
+	if (namespaceURI === "*") {
+		namespaceURI = null;
+	}
+	while (i < l) {
+		this.children[i++]._getElementsByTagNameNS(namespaceURI, localName, elts);
+	}
+	return elts;
+//	return this._elementsByTagName[namespaceURI] ? this._elementsByTagName[namespaceURI][localName] : null;
 };
 /*
 Fleur.Document.prototype.importNode = function(importedNode, deep) {
@@ -901,55 +1161,206 @@ Fleur.Document.prototype.renameNode = function(n, namespaceURI, qualifiedName) {
 };
 */
 Fleur.Node.prototype._parseXMLFromString = function(s) {
-	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = new Array(), doc = this.ownerDocument currnode = this, c,
-		seps_pi = " \t\n\r?", seps_close = " \t\n\r>", seps_elt = " \t\n\r/>", seps_attr = " \t\n\r=", seps_value = " \t\n\r'\"" seps = " \t\n\r",
-		n, namespaces = {}, newnamespaces, pindex, prefix, localName;
+	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = [], doc = this.ownerDocument || this, currnode = this, eltnode, attrnode, c,
+		seps_pi = " \t\n\r?", seps_dtd = " \t\n\r[>", seps_close = " \t\n\r>", seps_elt = " \t\n\r/>", seps_attr = " \t\n\r=", seps_value = " \t\n\r'\"", seps = " \t\n\r",
+		n, namespaces = {}, newnamespaces, pindex, prefix, localName, dtdtype, dtdpublicid, dtdsystemid, entityvalue, notationvalue;
 	while (offset !== end) {
 		index = s.indexOf("<", offset);
-		if (index !== 0) {
+		if (index !== offset) {
 			if (index === -1) {
 				index = end;
 			}
-			currnode.appendChild(doc.createTextNode(s.substring(offset, index - 1)));
-			if (index === end) {
-				break;
+			s = s.substr(0, offset) + Fleur.DocumentType.resolveEntities(doc.doctype, s.substring(offset, index)) + s.substr(index);
+			index = s.indexOf("<", offset);
+			end = s.length;
+			if (index !== offset) {
+				if (index === -1) {
+					index = end;
+				}
+				currnode.appendChild(doc.createTextNode(s.substring(offset, index)));
+				if (index === end) {
+					break;
+				}
 			}
-			offset = index - 1;
+			offset = index;
 		}
 		offset++;
 		if (s.charAt(offset) === "!") {
 			offset++;
 			if (s.substr(offset, 2) === "--") {
 				offset += 2;
-				index = s.indexOf("-->");
-				if (index !== 0) {
+				index = s.indexOf("-->", offset);
+				if (index !== offset) {
 					if (index === -1) {
 						index = end;
 					}
-					currnode.appendChild(doc.createComment(s.substring(offset, index - 1)));
+					currnode.appendChild(doc.createComment(s.substring(offset, index)));
 					if (index === end) {
 						break;
 					}
-					offset = index - 1;
+					offset = index;
 				}
 				offset += 3;
 			} else if (s.substr(offset, 7) === "[CDATA[") {
 				offset += 7;
-				index = s.indexOf("]]>");
-				if (index !== 0) {
+				index = s.indexOf("]]>", offset);
+				if (index !== offset) {
 					if (index === -1) {
 						index = end;
 					}
-					currnode.appendChild(doc.createCDATASection(s.substring(offset, index - 1)));
+					currnode.appendChild(doc.createCDATASection(s.substring(offset, index)));
 					if (index === end) {
 						break;
 					}
-					offset = index - 1;
+					offset = index;
 				}
 				offset += 3;
-			} else {
+			} else if (s.substr(offset, 7) === "DOCTYPE") {
+				offset += 7;
+				index = s.indexOf(">", offset);
+				while (seps.indexOf(c) !== -1) {
+					c = s.charAt(offset++);
+				}
+				name = "";
+				while (seps_dtd.indexOf(c) === -1) {
+					name += c;
+					c = s.charAt(offset++);
+				}
+				while (seps.indexOf(c) !== -1) {
+					c = s.charAt(offset++);
+				}
+				dtdtype = "";
+				while (seps_dtd.indexOf(c) === -1) {
+					dtdtype += c;
+					c = s.charAt(offset++);
+				}
+				if (dtdtype === "PUBLIC") {
+					while (seps.indexOf(c) !== -1) {
+						c = s.charAt(offset++);
+					}
+					dtdpublicid = s.substring(offset, Math.min(index - 1, s.indexOf(c, offset)));
+					offset += dtdpublicid.length + 1;
+					c = s.charAt(offset++);
+				}
+				while (seps.indexOf(c) !== -1) {
+					c = s.charAt(offset++);
+				}
+				dtdsystemid = s.substring(offset, Math.min(index - 1, s.indexOf(c, offset)));
+				offset += dtdsystemid.length + 1;
+				c = s.charAt(offset++);
+				currnode.appendChild(doc.doctype = doc.implementation.createDocumentType(name, dtdpublicid, dtdsystemid));
+				while (seps.indexOf(c) !== -1) {
+					c = s.charAt(offset++);
+				}
+				if (c === "[") {
+					index = s.indexOf("]", offset);
+					c = s.charAt(offset++);
+					while (c !== "]" && offset < end) {
+						while (seps.indexOf(c) !== -1) {
+							c = s.charAt(offset++);
+						}
+						if (c === "]") {
+							break;
+						}
+						if (s.substr(offset, 7) === "!ENTITY") {
+							offset += 7;
+							c = s.charAt(offset++);
+							while (seps.indexOf(c) !== -1) {
+								c = s.charAt(offset++);
+							}
+							if (c === "%") {
+								c = s.charAt(offset++);
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+							}
+							name = "";
+							while (seps_dtd.indexOf(c) === -1) {
+								name += c;
+								c = s.charAt(offset++);
+							}
+							while (seps.indexOf(c) !== -1) {
+								c = s.charAt(offset++);
+							}
+							if (s.substr(offset - 1, 6) === "SYSTEM") {
+								offset += 5;
+								c = s.charAt(offset++);
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+							} else if (s.substr(offset -1, 6) === "PUBLIC") {
+								offset += 5;
+								c = s.charAt(offset++);
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+								while (seps_dtd.indexOf(c) === -1) {
+									c = s.charAt(offset++);
+								}
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+							}
+							entityvalue = s.substring(offset, Math.min(index - 1, s.indexOf(c, offset)));
+							offset += entityvalue.length + 1;
+							c = s.charAt(offset++);
+							doc.doctype.setEntity(name, entityvalue);
+						} else if (s.substr(offset, 9) === "!NOTATION") {
+							offset += 9;
+							c = s.charAt(offset++);
+							while (seps.indexOf(c) !== -1) {
+								c = s.charAt(offset++);
+							}
+							name = "";
+							while (seps_dtd.indexOf(c) === -1) {
+								name += c;
+								c = s.charAt(offset++);
+							}
+							while (seps.indexOf(c) !== -1) {
+								c = s.charAt(offset++);
+							}
+							if (s.substr(offset - 1, 6) === "SYSTEM") {
+								offset += 5;
+								c = s.charAt(offset++);
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+							} else if (s.substr(offset -1, 6) === "PUBLIC") {
+								offset += 5;
+								c = s.charAt(offset++);
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+								while (seps_dtd.indexOf(c) === -1) {
+									c = s.charAt(offset++);
+								}
+								while (seps.indexOf(c) !== -1) {
+									c = s.charAt(offset++);
+								}
+							}
+							if (c === '"' || c === "'") {
+								notationvalue = s.substring(offset, Math.min(index - 1, s.indexOf(c, offset)));
+								offset += notationvalue.length + 1;
+								c = s.charAt(offset++);
+							}
+						}
+						offset = s.indexOf(">", offset - 1) + 1;
+						c = s.charAt(offset++);
+					}
+					index = s.indexOf(">", offset);
+				}
+				if (index !== offset) {
+					if (index === -1) {
+						index = end;
+					}
+					if (index === end) {
+						break;
+					}
+					offset = index;
+				}
+				offset++;
 			}
-		} else if (s.charAt(offset) === "?" {
+		} else if (s.charAt(offset) === "?") {
 			offset++;
 			c = s.charAt(offset++);
 			name = "";
@@ -963,13 +1374,13 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 			}
 			if (name === "xml") {
 			} else if (name !== "") {
-				currnode.appendChild(doc.createProcessingInstruction(name, index === offset - 1 ? "" : s.substring(offset, index - 1)));
+				currnode.appendChild(doc.createProcessingInstruction(name, index === offset - 1 ? "" : s.substring(offset, index)));
 			}
 			if (index === end) {
 				break;
 			}
 			offset = index + 2;
-		} else if (s.charAt(offset) === "/" {
+		} else if (s.charAt(offset) === "/") {
 			offset++;
 			c = s.charAt(offset++);
 			name = "";
@@ -977,15 +1388,21 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 				name += c;
 				c = s.charAt(offset++);
 			}
-			while (parents.length != 0) {
+			if (name === currnode.nodeName) {
 				n = parents.pop();
-				if (name === n.nodeName) {
-					namespaces = n.namespaces;
-					break;
+				namespaces = n.namespaces;
+				currnode = n.node;
+			} else {
+				while (parents.length !== 0) {
+					n = parents.pop();
+					if (name === n.node.nodeName) {
+						namespaces = n.namespaces;
+						currnode = n.node;
+						break;
+					}
 				}
 			}
-			currnode = parents.length !== 0 ? parents[parents.length - 1] : this;
-			offset = s.indexOf(">", offset) + 1;
+			offset = s.indexOf(">", offset - 1) + 1;
 			if (offset === 0) {
 				break;
 			}
@@ -1001,7 +1418,6 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 				newnamespaces = namespaces;
 				attrs = {};
 				while (true) {
-					c = s.charAt(offset++);
 					while (seps.indexOf(c) !== -1) {
 						c = s.charAt(offset++);
 					}
@@ -1023,7 +1439,9 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 						}
 						attrvalue = "";
 						if (c === "'" || c === "\"") {
-							attrvalue = s.substring(offset, Math.min(index -1, s.indexOf(c, offset)));
+							attrvalue = s.substring(offset, Math.min(index - 1, s.indexOf(c, offset)));
+							offset += attrvalue.length + 1;
+							c = s.charAt(offset++);
 						} else {
 							while (seps_elt.indexOf(c) === -1 && offset <= end) {
 								attrvalue += c;
@@ -1034,9 +1452,12 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 						attrvalue = attrname;
 					}
 					pindex = attrname.indexOf(":");
-					prefix = pindex !== -1 ? name.substr(0, pindexOf(":")) : " ";
-					localName = pindex !== -1 ? attrname.substr(pindex + 1) : attrname
-					attrs[prefix].[localName] = attrvalue;
+					prefix = pindex !== -1 ? attrname.substr(0, pindex) : " ";
+					localName = pindex !== -1 ? attrname.substr(pindex + 1) : attrname;
+					if (!attrs[prefix]) {
+						attrs[prefix] = {};
+					}
+					attrs[prefix][localName] = attrvalue;
 					if (prefix === "xmlns") {
 						newnamespaces[localName] = attrvalue;
 					} else if (prefix === " " && localName === "xmlns") {
@@ -1044,21 +1465,22 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 					}
 				}
 				pindex = name.indexOf(":");
-				eltnode = doc.createElementNS(newnamespaces[pindex !== -1 ? name.substr(0, pindexOf(":")) : " "], name);
+				eltnode = doc.createElementNS(newnamespaces[pindex !== -1 ? name.substr(0, pindex) : " "], name);
 				for (prefix in attrs) {
 					if (attrs.hasOwnProperty(prefix)) {
 						for (attrname in attrs[prefix]) {
 							if (attrs[prefix].hasOwnProperty(attrname)) {
-								attrnode = doc.createAttributeNS(newnamespaces[prefix], prefix + ":" + name)
-								attrnode.appendChild(doc.createTextNode(attrvalue));
-								eltnode.setAttributeNode(attrnode);
+								attrnode = doc.createAttributeNS(prefix === "xmlns" || prefix === " " && attrname === "xmlns" ? "http://www.w3.org/2000/xmlns/" : newnamespaces[prefix], prefix !== " " ? prefix + ":" + attrname : attrname);
+								eltnode.setAttributeNodeNS(attrnode);
+								attrnode.appendChild(doc.createTextNode(Fleur.DocumentType.resolveEntities(doc.doctype, attrs[prefix][attrname])));
 							}
 						}
 					}
 				}
 				currnode.appendChild(eltnode);
-				if (s.charAt(index - 1) !== "/") {
-					parents.push({nodeName: name, namespaces: namespaces});
+				if (s.charAt(offset - 1) !== "/") {
+					parents.push({node: currnode, namespaces: namespaces});
+					currnode = eltnode;
 					namespaces = newnamespaces;
 				}
 			}
@@ -1068,25 +1490,101 @@ Fleur.Node.prototype._parseXMLFromString = function(s) {
 			}
 		}
 	}
-}
+};
 
 Fleur.DocumentType = function() {
 	this.nodeType = Fleur.Node.DOCUMENT_TYPE_NODE;
+	this.entities = new Fleur.NamedNodeMap();
+	this.entities.ownerNode = this;
+	this.notations = new Fleur.NamedNodeMap();
+	this.notations.ownerNode = this;
 };
 Fleur.DocumentType.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.DocumentType.prototype, {
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
+Fleur.DocumentType.prototype.createEntity = function(name) {
+	var node = new Fleur.Entity();
+	node.localName = node.nodeName = name;
+	return node;
+}
+Fleur.DocumentType.prototype.hasEntity = function(name) {
+	return !!this.entities.getNamedItem(name);
+};
+Fleur.DocumentType.prototype.setEntity = function(name, value) {
+	var entity;
+	if (this.hasEntity(name)) {
+		return;
+	}
+	entity = this.createEntity(name);
+	entity.nodeValue = Fleur.DocumentType.resolveEntities(this, value);
+	this.entities.setNamedItem(entity);
+};
+Fleur.DocumentType.prototype.getEntity = function(name) {
+	var i = 0, l = this.entities.length;
+	while (i < l) {
+		if (this.entities[i].nodeName === name) {
+			return this.entities[i].nodeValue;
+		}
+		i++;
+	}
+	return null;
+};
+Fleur.DocumentType.resolveEntities = function(doctype, s) {
+	var offset = 0, index, entityname, entityvalue = null;
+	while ((index = s.indexOf("&", offset)) !== -1) {
+		entityname = s.substring(index + 1, s.indexOf(";", index + 1));
+		switch (entityname) {
+			case "amp":
+				entityvalue = "&";
+				break;
+			case "lt":
+				entityvalue = "<";
+				break;
+			case "gt":
+				entityvalue = ">";
+				break;
+			default:
+				if (entityname.charAt(0) === "#") {
+					entityvalue = String.fromCharCode(parseInt(entityname.charAt(1).toLowerCase() === 'x' ? "0" + entityname.substr(1).toLowerCase() : entityname.substr(1)));
+				} else if (doctype) {
+					entityvalue = doctype.getEntity(entityname);
+				}
+		}
+		if (entityvalue) {
+			s = s.substr(0, index) + entityvalue + s.substr(index + entityname.length + 2);
+			offset = index + entityvalue.length + 1;
+		}
+	}
+	return s.split("\r\n").join("\n");
+}
 
 Fleur.DocumentFragment = function() {
+	Fleur.Node.apply(this);
 	this.nodeType = Fleur.Node.DOCUMENT_FRAGMENT_NODE;
 	this.nodeName = "#document-fragment";
 };
 Fleur.DocumentFragment.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.DocumentFragment.prototype, {
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
 
 Fleur.Nodes = function() {};
 
 Fleur.DOMParser = function() {};
 Fleur.DOMParser.prototype.parseFromString = function(s, mediatype) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
-	impl = domSource.getImplementation("XML");
+	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
 	switch(mediatype) {
 		default:
@@ -1095,4 +1593,4 @@ Fleur.DOMParser.prototype.parseFromString = function(s, mediatype) {
 	return doc;
 };
 
-}());
+})();

@@ -16,7 +16,7 @@
   <!ENTITY % entities SYSTEM "dom3xpathents.ent">
   %entities;
 ]>
-<suite xmlns="&level3;" name="alltests">
+<suite xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="alltests">
 	<metadata>
 		<title>DOM Level 3 XPath Test Suite</title>
 		<creator>DOM Test Suite Project</creator>

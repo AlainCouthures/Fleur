@@ -1,43 +1,93 @@
-<?xml-stylesheet href="xsltforms/xsltforms.xsl" type="text/xsl"?>
+<?xml-stylesheet href="/xsltforms/trunk/src/xsltforms.xsl" type="text/xsl"?>
+<?xsltforms-options debug="no"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:xf="http://www.w3.org/2002/xforms" xmlns:ev="http://www.w3.org/2001/xml-events">
 	<head>
 		<title>Test Runner</title>
-		<!--script type="text/javascript" src="fleur.js"/-->
-		<xf:model>
-			<xf:instance id="alltests" src="W3CTestSuite/level2/core/alltests.xml"/>
+		<script type="text/javascript" src="fleur.js"/>
+		<xf:model id="modelid">
+			<xf:instance id="module">
+				<module xmlns="">W3CTestSuite/level1/core</module>
+			</xf:instance>
+			<xf:instance id="modules">
+				<modules xmlns="">
+					<module name="Level 1 - Core" path="W3CTestSuite/level1/core"/>
+					<!--module name="Level 1 - HTML" path="W3CTestSuite/level1/html"/-->
+					<module name="Level 2 - Core" path="W3CTestSuite/level2/core"/>
+					<!--module name="Level 2 - Events" path="W3CTestSuite/level2/events"/-->
+					<!--module name="Level 2 - HTML" path="W3CTestSuite/level2/html"/-->
+					<module name="Level 3 - Core" path="W3CTestSuite/level3/core"/>
+					<!--module name="Level 3 - Events" path="W3CTestSuite/level3/events"/-->
+					<module name="Level 3 - LS" path="W3CTestSuite/level3/ls"/>
+					<module name="Level 3 - Validation" path="W3CTestSuite/level3/validation"/>
+					<module name="Level 3 - XPath" path="W3CTestSuite/level3/xpath"/>
+				</modules>
+			</xf:instance>
+			<xf:instance id="alltests">
+				<suite xmlns=""/>
+			</xf:instance>
+			<xf:instance id="test-engine">
+				<engine xmlns="">Fleur</engine>
+			</xf:instance>
+			<xf:instance id="currhref">
+				<currhref xmlns="" status="unknown"/>
+			</xf:instance>
 			<xf:instance id="source">
 				<test xmlns=""/>
+			</xf:instance>
+			<xf:instance id="filter">
+				<filter xmlns="">diff</filter>
 			</xf:instance>
 			<xf:instance id="test">
 				<test xmlns="">
 					<href/>
-					<js/>
+					<js>Unknown</js>
 					<html>
 						<head>
-							<script type="text/javascript"></script>
+							<script type="text/javascript" src="/fleur/fleur.js">/**/</script>
+							<script id="source" type="text/javascript">/**/</script>
 						</head>
 						<body>
 							<h1 id="status">Unknown</h1>
 							<pre>Unknown</pre>
 							<pre style="color:blue">Unknown</pre>
 							<script type="text/javascript">
-								document.getElementById("status").innerHTML = status;
-								document.getElementById("status").style.color = status === "OK" ? "green" : "red";
+								document.getElementById("status").innerHTML = status.replace(new RegExp("\n", "g"), String.fromCharCode(60)+"br"+String.fromCharCode(62)).replace(new RegExp(window.location, "g") , "#");
+								document.getElementById("status").style.color = status.split(" ")[1] === "OK" ? "green" : "red";
 							</script>
 						</body>
 					</html>
 					<page/>
 				</test>
 			</xf:instance>
-			<xf:submission id="get_test" method="get" replace="instance" instance="source" serialization="none" mode="synchronous">
-				<xf:resource value="concat('W3CTestSuite/level2/core/',instance('alltests')/*[local-name() = 'suite.member'][position() = index('members')]/@href)"/>
+			<xf:bind id="hasjs" ref="instance('alltests')/*[local-name() = 'suite.member']/Fleur"/>
+			<xf:submission id="get_suite" method="get" replace="instance" instance="alltests" serialization="none" mode="synchronous">
+				<xf:resource value="concat(instance('module'),'/alltests.xml')"/>
 				<xf:action ev:event="xforms-submit-done">
-					<xf:setvalue ref="instance('test')/js" value="transform(instance('source'),'test-to-ecmascript.xsl',false())"/>
-					<xf:setvalue ref="instance('test')/html/head/script" value="concat('var status = ',/test/js,';')"/>
+					<xf:setnode ref="instance('alltests')" outer="transform(instance('alltests'),'test-to-ecmascript.xsl',false(),'path',concat(instance('module'),'/'))"/>
+				</xf:action>
+			</xf:submission>
+			<xf:submission id="save_suite" method="put" ref="instance('alltests')" mode="synchronous" replace="none">
+				<xf:resource value="concat('/xsltforms/trunk/src/put.php?name=/Users/Alain%20Couthures/skydrive/fleur/',instance('module'),'/alltests_js.xml')"/>
+			</xf:submission>
+			<xf:submission id="load_suite" method="get" replace="instance" instance="alltests" serialization="none" mode="synchronous">
+				<xf:resource value="concat(instance('module'),'/alltests_js.xml')"/>
+			</xf:submission>
+			<xf:submission id="save_load_page" value="instance('test')/page" method="put" replace="none">
+				<xf:resource value="concat('/xsltforms/trunk/src/put.php?name=/Users/Alain%20Couthures/skydrive/fleur/',substring-before(concat(instance('module'),'/',instance('test')/href),'.xml'),'_',choose(instance('test-engine') = 'Fleur','fleur','native'),'.htm')"/>
+				<xf:load ev:event="xforms-submit-done" show="new">
+					<xf:resource value="concat(substring-before(concat(instance('module'),'/',instance('test')/href),'.xml'),'_',choose(instance('test-engine') = 'Fleur','fleur','native'),'.htm')"/>
+				</xf:load>
+			</xf:submission>
+			<xf:submission id="get_test" method="get" replace="instance" instance="source" serialization="none" mode="synchronous">
+				<xf:resource value="concat(instance('module'),'/',instance('test')/href)"/>
+				<xf:action ev:event="xforms-submit-done">
+					<xf:setvalue ref="instance('test')/js" value="replace(replace(substring-before(substring-after(transform(instance('source'),'test-to-ecmascript.xsl',false(),'path','','engine',instance('test-engine')),'&gt;'),'&lt;/js&gt;'),'&amp;amp;','&amp;'),'&amp;lt;','&lt;')"/>
+					<xf:setvalue ref="instance('test')/html/head/script[2]" value="concat('var status = ',/test/js)"/>
 					<xf:setvalue ref="instance('test')/html/body/pre[1]" value="/test/js"/>
+					<!--xf:setvalue ref="instance('test')/html/body/span" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&amp;lt;'),'&gt;','&amp;gt;')"/-->
 					<xf:setvalue ref="instance('test')/html/body/pre[2]" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&amp;lt;'),'&gt;','&amp;gt;')"/>
-					<xf:setvalue ref="instance('test')/page" value="concat('&lt;!DOCTYPE html&gt;',serialize(../html))"/>
-					<xf:load ref="instance('test')/page" show="new"/>
+					<xf:setvalue ref="instance('test')/page" value="concat('&lt;!DOCTYPE html&gt;',replace(replace(replace(serialize(../html),'&amp;amp;','&amp;'),'&amp;lt;','&lt;'),'&amp;gt;','&gt;'))"/>
+					<xf:send submission="save_load_page"/>
 				</xf:action>
 				<xf:message ev:event="xforms-submit-error">Error loading the test file.</xf:message>
 			</xf:submission>
@@ -45,15 +95,71 @@
 	</head>
 	<body>
 		<h1>Test Runner</h1>
-		<xf:repeat id="members" ref="instance('alltests')/*[local-name() = 'suite.member']">
-			<xf:trigger>
-				<xf:label>Load in new tab</xf:label>
-				<xf:action ev:event="DOMActivate">
-					<xf:setvalue ref="instance('test')/href" value="@href"/>
-					<xf:send submission="get_test"/>
-				</xf:action>
-			</xf:trigger>
-			<xf:output value="substring-before(@href, '.xml')"/>
-		</xf:repeat> 
+		<xf:select1 ref="instance('module')" appearance="full">
+			<xf:itemset ref="instance('modules')/*">
+				<xf:label ref="@name"/>
+				<xf:value ref="@path"/>
+			</xf:itemset>
+		</xf:select1>
+		<xf:select1 ref="instance('filter')" appearance="full">
+			<xf:item>
+				<xf:label>Differences</xf:label>
+				<xf:value>diff</xf:value>
+			</xf:item>
+			<xf:item>
+				<xf:label>All</xf:label>
+				<xf:value>all</xf:value>
+			</xf:item>
+		</xf:select1>
+		<xf:trigger>
+			<xf:label>Generate Suite</xf:label>
+			<xf:send ev:event="DOMActivate" submission="get_suite"/>
+		</xf:trigger>
+		<xf:trigger bind="hasjs">
+			<xf:label>Execute Suite</xf:label>
+			<xf:action ev:event="DOMActivate" iterate="instance('alltests')/*[local-name() = 'suite.member' and not(starts-with(@href, '../'))]">
+				<xf:setvalue ref="@fleur" value="js-eval(context()/Fleur)"/>
+				<xf:setvalue ref="@native" value="js-eval(context()/Native)"/>
+			</xf:action>
+		</xf:trigger>
+		<xf:trigger bind="hasjs">
+			<xf:label>Save Suite</xf:label>
+			<xf:send ev:event="DOMActivate" submission="save_suite"/>
+		</xf:trigger>
+		<xf:trigger>
+			<xf:label>Load Suite</xf:label>
+			<xf:send ev:event="DOMActivate" submission="load_suite"/>
+		</xf:trigger>
+		<xf:output value="concat(count(instance('alltests')/*[local-name() = 'suite.member' and not(starts-with(@href, '../')) and substring-after(@fleur,': ') != 'OK' and (substring-after(@native,': ') = 'OK' or instance('filter') = 'all' or not(contains(@native,':')))]),'/',count(instance('alltests')/*[local-name() = 'suite.member' and not(starts-with(@href, '../')) and (substring-after(@native,': ') = 'OK' or not(contains(@native,':')))]))"/>
+		<table border="1">
+			<tbody>
+				<xf:repeat id="members" ref="instance('alltests')/*[local-name() = 'suite.member' and not(starts-with(@href, '../')) and substring-after(@fleur,': ') != 'OK' and (substring-after(@native,': ') = 'OK' or instance('filter') = 'all' or not(contains(@native,':')))]">
+					<tr>
+						<td>
+							<xf:trigger>
+								<xf:label>Load Fleur</xf:label>
+								<xf:action ev:event="DOMActivate">
+									<xf:setvalue ref="instance('test-engine')" value="'Fleur'"/>
+									<xf:setvalue ref="instance('test')/href" value="context()/@href"/>
+									<xf:send submission="get_test"/>
+								</xf:action>
+							</xf:trigger>
+							<xf:output style="color: {choose(substring-after(@fleur,': ') = 'OK','green','red')}" value="@fleur"/>
+						</td>
+						<td>
+							<xf:trigger>
+								<xf:label>Load Native</xf:label>
+								<xf:action ev:event="DOMActivate">
+									<xf:setvalue ref="instance('test-engine')" value="'Native'"/>
+									<xf:setvalue ref="instance('test')/href" value="context()/@href"/>
+									<xf:send submission="get_test"/>
+								</xf:action>
+							</xf:trigger>
+							<!--xf:output style="color: {choose(substring-after(@native,': ') = 'OK','green','red')}" value="@native"/-->
+						</td>
+					</tr>
+				</xf:repeat>
+			</tbody>
+		</table>
 	</body>
 </html>

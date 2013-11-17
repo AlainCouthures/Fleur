@@ -45,7 +45,7 @@ See W3C License http://www.w3.org/Consortium/Legal/ for more details.
 <var name="value" type="DOMString"/>
 <load var="doc" href="staff" willBeModified="false"/>
 <getElementsByTagName interface="Document" obj="doc" var="addressList" tagname="&quot;address&quot;"/>
-<item interface="NodeList" obj="addressList" var="testNode" index="0"/>
+<item interface="NodeList" obj="addressList" var="testNode" index="1"/>
 <attributes obj="testNode" var="attributes"/>
 <getNamedItem obj="attributes" var="streetAttr" name="&quot;street&quot;"/>
 <nodeValue obj="streetAttr" var="value"/>
