@@ -2390,12 +2390,15 @@ var errorMonitor;
 var userDataMonitor;
 </xsl:text>
 		</xsl:if>
-		<xsl:apply-templates mode="innerClass" select="*[local-name() = 'var'  and *[local-name() != 'member']]"/>
 		<xsl:apply-templates select="*[local-name()='metadata']"/>
 		<xsl:text>(function(){
 	var success;
 	try {
 </xsl:text>
+		<xsl:apply-templates mode="innerClass" select="*[local-name() = 'var'  and *[local-name() != 'member']]">
+			<xsl:with-param name="offset" select="2"/>
+			<xsl:with-param name="eng" select="$eng"/>
+		</xsl:apply-templates>
 		<xsl:apply-templates mode="body">
 			<xsl:with-param name="offset" select="2"/>
 			<xsl:with-param name="eng" select="$eng"/>
@@ -2709,8 +2712,11 @@ var userDataMonitor;
 		<xsl:param name="vardefs"/>
 		<xsl:param name="offset"/>
 		<xsl:value-of select="substring($tabs,1,$offset)"/>
-		<xsl:text>return </xsl:text>
+		<xsl:text>break</xsl:text>
+		<!--
+		<xsl:text>return</xsl:text>
 		<xsl:value-of select="@value"/>
+		-->
 		<xsl:text>;
 </xsl:text>
 	</xsl:template>

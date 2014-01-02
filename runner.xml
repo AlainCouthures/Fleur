@@ -15,7 +15,8 @@
 					<module name="Level 2 - Core" path="W3CTestSuite/level2/core"/>
 					<!--module name="Level 2 - Events" path="W3CTestSuite/level2/events"/-->
 					<!--module name="Level 2 - HTML" path="W3CTestSuite/level2/html"/-->
-					<module name="Level 3 - Core" path="W3CTestSuite/level3/core"/>
+					<module name="Level 3 - Core #1" path="W3CTestSuite/level3/core_1"/>
+					<module name="Level 3 - Core #2" path="W3CTestSuite/level3/core_2"/>
 					<!--module name="Level 3 - Events" path="W3CTestSuite/level3/events"/-->
 					<module name="Level 3 - LS" path="W3CTestSuite/level3/ls"/>
 					<module name="Level 3 - Validation" path="W3CTestSuite/level3/validation"/>
@@ -85,7 +86,7 @@
 					<xf:setvalue ref="instance('test')/html/head/script[2]" value="concat('var status = ',/test/js)"/>
 					<xf:setvalue ref="instance('test')/html/body/pre[1]" value="/test/js"/>
 					<!--xf:setvalue ref="instance('test')/html/body/span" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&amp;lt;'),'&gt;','&amp;gt;')"/-->
-					<xf:setvalue ref="instance('test')/html/body/pre[2]" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&amp;lt;'),'&gt;','&amp;gt;')"/>
+					<xf:setvalue ref="instance('test')/html/body/pre[2]" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&#706;'),'&gt;','&#707;')"/>
 					<xf:setvalue ref="instance('test')/page" value="concat('&lt;!DOCTYPE html&gt;',replace(replace(replace(serialize(../html),'&amp;amp;','&amp;'),'&amp;lt;','&lt;'),'&amp;gt;','&gt;'))"/>
 					<xf:send submission="save_load_page"/>
 				</xf:action>
