@@ -1,0 +1,114 @@
+<?xml-stylesheet href="/xsltforms/trunk/src/xsltforms.xsl" type="text/xsl"?>
+<?xsltforms-options debug="no"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:xf="http://www.w3.org/2002/xforms" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:qt="http://www.w3.org/2010/09/qt-fots-catalog">
+	<head>
+		<title>XQuery Test Suite</title>
+		<script type="text/javascript" src="fleur.js"/>
+		<xf:model id="modelid">
+			<xf:instance id="test-set" src="QT3_1_0/op/numeric-add.xml"/>
+			<xf:instance id="status">
+				<status xmlns=""/>
+			</xf:instance>
+			<xf:instance id="result">
+				<result xmlns=""/>
+			</xf:instance>
+			<xf:instance id="test">
+				<test xmlns="">
+					<case/>
+					<js>Unknown</js>
+					<html>
+						<head>
+							<script type="text/javascript" src="/fleur/fleur.js">/**/</script>
+							<script id="source" type="text/javascript">/**/</script>
+						</head>
+						<body>
+							<h1 id="status">Unknown</h1>
+							<pre>Unknown</pre>
+							<pre style="color:blue">Unknown</pre>
+							<script type="text/javascript">
+								document.getElementById("status").innerHTML = status.replace(new RegExp("\n", "g"), String.fromCharCode(60)+"br"+String.fromCharCode(62)).replace(new RegExp(window.location, "g") , "#");
+								document.getElementById("status").style.color = status.split(" ")[1] === "OK" ? "green" : "red";
+							</script>
+						</body>
+					</html>
+					<page/>
+				</test>
+			</xf:instance>
+			<xf:submission id="save_load_page" value="instance('test')/page" method="put" replace="none">
+				<xf:resource value="concat('/xsltforms/trunk/src/put.php?name=/Users/Alain%20Couthures/skydrive/fleur/',instance('test')/case,'.htm')"/>
+				<xf:load ev:event="xforms-submit-done" show="new">
+					<xf:resource value="concat(instance('test')/case,'.htm')"/>
+				</xf:load>
+			</xf:submission>
+		</xf:model>
+		<script type="text/javascript">
+			var parser = new Fleur.DOMParser();
+			var ser = new Fleur.Serializer();
+			function resulteval(test) {
+				var xexpr = "";
+				try {
+					var xmldoc = parser.parseFromString(test, "application/xml");
+					xexpr = xmldoc.evaluate("*:test-case/*:test/text()")[0].data;
+					var testdoc = parser.parseFromString("<dummy/>", "application/xml");
+					var res = testdoc.evaluate(xexpr);
+					console.dir(res);
+					return ser.serializeToString(res, "application/xml");
+				} catch (e) {
+					return "";
+				}
+			}
+			function statuseval(test) {
+				var xexpr = "";
+				try {
+					var xmldoc = parser.parseFromString(test, "application/xml");
+					xexpr = xmldoc.evaluate("*:test-case/*:test/text()")[0].data;
+					var testdoc = parser.parseFromString("<dummy/>", "application/xml");
+					var res = testdoc.evaluate(xexpr);
+					return "OK";
+				} catch (e) {
+					console.log(xexpr !== "" ? xexpr : test);
+					console.dir(e);
+					return "FAIL";
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<h1>XQuery Test Suite</h1>
+		<xf:trigger>
+			<xf:label>Execute Suite</xf:label>
+			<xf:action ev:event="DOMActivate" iterate="instance('test-set')/qt:test-case">
+				<xf:insert origin="instance('status')"/>
+				<xf:insert origin="instance('result')"/>
+				<xf:setvalue ref="status" value="statuseval(serialize(context()))"/>
+				<xf:setvalue ref="result" value="resulteval(serialize(context()))"/>
+			</xf:action>
+		</xf:trigger>
+		<table border="1">
+			<tbody>
+				<xf:repeat id="members" ref="instance('test-set')/qt:test-case">
+					<tr>
+						<td>
+							<xf:output value="result"/>
+						</td>
+						<td>
+							<xf:trigger>
+								<xf:label>Load</xf:label>
+								<xf:action ev:event="DOMActivate">
+									<xf:setvalue ref="instance('test')/case" value="context()/@name"/>
+									<xf:setvalue ref="instance('test')/js" value=""/>
+									<xf:setvalue ref="instance('test')/html/head/script[2]" value="concat('var status = ',/test/js)"/>
+									<xf:setvalue ref="instance('test')/html/body/pre[1]" value="/test/js"/>
+									<xf:setvalue ref="instance('test')/html/body/pre[2]" value="replace(replace(serialize(instance('source'), 'yes'),'&lt;','&#706;'),'&gt;','&#707;')"/>
+									<xf:setvalue ref="instance('test')/page" value="concat('&lt;!DOCTYPE html&gt;',replace(replace(replace(serialize(../html),'&amp;amp;','&amp;'),'&amp;lt;','&lt;'),'&amp;gt;','&gt;'))"/>
+									<xf:send submission="save_load_page"/>
+								</xf:action>
+							</xf:trigger>
+							<xf:output style="color: {choose(status = 'OK','green',choose(status = '', 'black', 'red'))}" value="qt:test"/>
+						</td>
+					</tr>
+				</xf:repeat>
+			</tbody>
+		</table>
+	</body>
+</html>

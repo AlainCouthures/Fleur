@@ -1,18 +1,123 @@
 (function(Fleur) {
 "use strict";
 
-Fleur.TypeInfo = function(typeNamespace, typeName) {
+Fleur.TypeInfo = function(typeNamespace, typeName, derivationMethod, derivationType) {
 	this.typeNamespace = typeNamespace;
 	this.typeName = typeName;
+	Fleur.Types[typeNamespace][typeName] = this;
+	switch (derivationMethod) {
+		case Fleur.TypeInfo.DERIVATION_RESTRICTION:
+			this.restriction = derivationType;
+			break;
+		case Fleur.TypeInfo.DERIVATION_EXTENSION:
+			this.extension = derivationType;
+			break;
+		case Fleur.TypeInfo.DERIVATION_UNION:
+			this.union = derivationType;
+			break;
+		case Fleur.TypeInfo.DERIVATION_LIST:
+			this.list = derivationType;
+			break;
+	}
 };
 Fleur.TypeInfo.DERIVATION_RESTRICTION = 1;
 Fleur.TypeInfo.DERIVATION_EXTENSION = 2;
 Fleur.TypeInfo.DERIVATION_UNION = 4;
 Fleur.TypeInfo.DERIVATION_LIST = 8;
-/* 
 Fleur.TypeInfo.prototype.isDerivedFrom = function(typeNamespaceArg, typeNameArg, derivationMethod) {
+	var propname, t = Fleur.Types[typeNamespaceArg][typeNameArg];
+	switch (derivationMethod) {
+		case Fleur.TypeInfo.DERIVATION_RESTRICTION:
+			propname = "restriction";
+			break;
+		case Fleur.TypeInfo.DERIVATION_EXTENSION:
+			propname = "extension";
+			break;
+		case Fleur.TypeInfo.DERIVATION_UNION:
+			propname = "union";
+			break;
+		case Fleur.TypeInfo.DERIVATION_LIST:
+			propname = "list";
+			break;
+	}
+	t = this[propname];
+	while (t) {
+		if (t === typeArg) {
+			return true;
+		}
+		t = t[propname];
+	}
+	return false;
 };
-*/
+
+Fleur.Types = {};
+Fleur.Types["http://www.w3.org/2001/XMLSchema"] = {};
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "error");
+Fleur.Type_error = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["error"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "untypedAtomic");
+Fleur.Type_untypedAtomic = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["untypedAtomic"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "anySimpleType");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "anyAtomicType");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "string");
+Fleur.Type_string = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["string"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "boolean");
+Fleur.Type_boolean = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["boolean"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "decimal");
+Fleur.Type_decimal = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["decimal"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "float");
+Fleur.Type_float = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["float"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "double");
+Fleur.Type_double = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["double"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "duration");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "dateTime");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "time");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "date");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "gYearMonth");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "gYear");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "gMonthDay");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "gDay");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "gMonth");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "hexBinary");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "base64Binary");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "anyURI");
+Fleur.Type_anyURI = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["anyURI"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "QName");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "NOTATION");
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "normalizedString", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Type_string);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "token", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].normalizedString);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "language", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].token);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "NMTOKEN", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].token);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "NMTOKENS", Fleur.TypeInfo.DERIVATION_LIST, Fleur.Types["http://www.w3.org/2001/XMLSchema"].NMTOKEN);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "Name", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].token);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "NCName", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].Name);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "ID", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].NCName);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "IDREF", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].NCName);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "IDREFS", Fleur.TypeInfo.DERIVATION_LIST, Fleur.Types["http://www.w3.org/2001/XMLSchema"].IDREF);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "ENTITY", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].NCName);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "ENTITIES", Fleur.TypeInfo.DERIVATION_LIST, Fleur.Types["http://www.w3.org/2001/XMLSchema"].ENTITY);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].decimal);
+Fleur.Type_integer = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["integer"];
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "nonPositiveInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].integer);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "negativeInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].nonPositiveInteger);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "long", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].integer);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "int", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].long);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "short", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].int);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "byte", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].short);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "nonNegativeInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].integer);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "unsignedLong", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].nonNegativeInteger);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "unsignedInt", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].unsignedLong);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "unsignedShort", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].unsignedInt);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "unsignedByte", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].unsignedByte);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "positiveInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].nonNegativeInteger);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "yearMonthDuration", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].duration);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "dayTimeDuration", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].duration);
+new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "dateTimeStamp", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].dateTime);
+
+Fleur.Types["http://www.agencexml.com/types"] = {};
+new Fleur.TypeInfo("http://www.agencexml.com/types", "regex");
+Fleur.Type_regex = Fleur.Types["http://www.agencexml.com/types"]["regex"];
+
+Fleur.numericTypes = [Fleur.Type_integer, Fleur.Type_decimal, Fleur.Type_float, Fleur.Type_double];
 
 Fleur.UserDataHandler = function() {};
 Fleur.UserDataHandler.NODE_CLONED = 1;
@@ -266,7 +371,7 @@ Fleur.DOMImplementation.prototype._Features = [
 	["xml", "1.0"],
 	["xml", "2.0"]
 ];
-Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype) {
+Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype, mediatype) {
 	var doc = new Fleur.Document();
 	if (doctype && (doctype.ownerDocument || doctype._implementation !== this)) {
 		throw new Fleur.DOMException(Fleur.DOMException.WRONG_DOCUMENT_ERR);
@@ -280,6 +385,7 @@ Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualif
 		doctype.ownerDocument = doc;
 		doc.doctype = doctype;
 	}
+	doc.mediatype = mediatype;
 	return doc;
 };
 Fleur.DOMImplementation.prototype.createDocumentType = function(qualifiedName, publicId, systemId) {
@@ -466,6 +572,25 @@ Object.defineProperties(Fleur.Node.prototype, {
 		},
 		get: function() {
 			return this._prefix;
+		}
+	},
+	textContent: {
+		set: function(value) {
+			if (this.nodeType === Fleur.Node.TEXT_NODE) {
+				this.data = value;
+			} else if (this.firstChild) {
+				this.firstChild.nodeValue = value;
+			}
+		},
+		get: function() {
+			var _textContent = "", i = 0, li = this.childNodes.length;
+			if (this.nodeType === Fleur.Node.TEXT_NODE) {
+				return this.data;
+			}
+			while (i < li) {
+				_textContent += this.childNodes[i++].textContent;
+			}
+			return _textContent;
 		}
 	}
 });
@@ -958,7 +1083,7 @@ Fleur.Element.prototype.getAttributeNodeNS = function(namespaceURI, localName) {
 Fleur.Element.prototype.getAttributeNS = function(namespaceURI, localName) {
 	var i = 0, l = this.attributes.length;
 	while (i < l) {
-		if (this.attributes[i].localName === localName && (!namespaceURI || this.attributes[i].namespaceURI === namespaceURI)) {
+		if ( !namespaceURI && this.attributes[i].nodeName === localName || this.attributes[i].localName === localName && this.attributes[i].namespaceURI === namespaceURI) {
 			return this.attributes[i].nodeValue;
 		}
 		i++;
@@ -1082,6 +1207,347 @@ Fleur.Element.prototype.setIdAttributeNS = function(namespaceURI, localName, isI
 */
 /*
 Fleur.Element.prototype.setIdAttributeNode = function(idAttr, isId) {
+};
+*/
+Fleur._whitespaceregex = /^\s*$/;
+Fleur.Node.prototype._toXsltX = function(tvt) {
+	var i = 0, li = 0, j = 0, lj = 0, xsltx = [], p, childx, inst, avt, p1, p2, exp;
+	switch (this.nodeType) {
+		case Fleur.Node.TEXT_NODE:
+			if (Fleur._whitespaceregex.test(this.data)) {
+				p = this.parentNode;
+				if (p.namespaceURI === "http://www.w3.org/1999/XSL/Transform") {
+					if (p.localName === "accumulator" ||
+						p.localName === "analyse-string" ||
+						p.localName === "apply-imports" ||
+						p.localName === "apply-templates" ||
+						p.localName === "attribute-set" ||
+						p.localName === "call-template" ||
+						p.localName === "character-map" ||
+						p.localName === "choose" ||
+						p.localName === "evaluate" ||
+						p.localName === "fork" ||
+						p.localName === "merge" ||
+						p.localName === "merge-source" ||
+						p.localName === "mode" ||
+						p.localName === "next-iteration" ||
+						p.localName === "next-match" ||
+						p.localName === "override" ||
+						p.localName === "package" ||
+						p.localName === "stylesheet" ||
+						p.localName === "transform" ||
+						p.localName === "use-package") {
+						return null;
+					}
+				}
+				p = this.previousSibling;
+				if (p && p.namespaceURI === "http://www.w3.org/1999/XSL/Transform" && p.localName === "catch") {
+					return null;
+				}
+				p = this.nextSibling;
+				if (p && p.namespaceURI === "http://www.w3.org/1999/XSL/Transform") {
+					if (p.localName === "param" ||
+						p.localName === "sort" ||
+						p.localName === "context-item" ||
+						p.localName === "on-completion") {
+						return null;
+					}
+				}
+				p = this.parentNode;
+				while (p.nodeType === Fleur.Node.ELEMENT_NODE) {
+					if (p.hasAttribute("xml:space")) {
+						break;
+					}
+					p = p.parentNode;
+				}
+				if (p.nodeType !== Fleur.Node.ELEMENT_NODE || p.getAttribute("xml:space") === "default") {
+					return null;
+				}
+			}
+			if (tvt) {
+				xsltx = [];
+				avt = this.nodeValue;
+				while (avt !== "") {
+					p1 = avt.indexOf("{");
+					if (p1 === -1 || (p2 = avt.substr(p1).indexOf("}")) === -1) {
+						xsltx.push([Fleur.XsltX.text, [avt]]);
+						break;
+					}
+					if (p1 !== 0) {
+						xsltx.push([Fleur.XsltX.text, [avt.substr(0, p1)]]);
+						avt = avt.substr(p1);
+					} else {
+						xsltx.push([Fleur.XsltX["value-of"], [[Fleur.XsltXattr["select value-of"], [eval(Fleur.XPathEvaluator._xp2js(avt.substr(1, p2 - 1), "", ""))]]]]);
+						avt = avt.substr(p2 + 1);
+					}
+				}
+				return xsltx;
+			}
+			return [[Fleur.XsltX.text, [this.data]]];
+		case Fleur.Node.CDATA_NODE:
+			return [[Fleur.XsltX.text, [this.data]]];
+		case Fleur.Node.ATTRIBUTE_NODE:
+			if (this.namespaceURI === "http://www.w3.org/2000/xmlns/") {
+				return this.nodeValue === "http://www.w3.org/1999/XSL/Transform" ? null : [[Fleur.XsltX.namespace, [[Fleur.XsltXattr["name namespace"], [this.localName]], [Fleur.XsltXattr["select namespace"], ["'" + this.nodeValue + "'"]]]]];
+			}
+			if (!this.namespaceURI && this.nodeName === "xmlns") {
+				return this.nodeValue === "http://www.w3.org/1999/XSL/Transform" ? null : [[Fleur.XsltX.namespace, [[Fleur.XsltXattr["name namespace"], [""]], [Fleur.XsltXattr["select namespace"], ["'" + this.nodeValue + "'"]]]]];
+			}
+			if (!this.namespaceURI && this.ownerElement.namespaceURI === "http://www.w3.org/1999/XSL/Transform" || this.namespaceURI === "http://www.w3.org/1999/XSL/Transform") {
+				inst = Fleur.XsltXattr[this.localName + " " + this.ownerElement.localName] || Fleur.XsltXattr[this.localName + " *"];
+				if (Fleur.XsltXNames[1][inst][1] === 5) {
+					xsltx = [inst, []];
+					avt = this.nodeValue;
+					while (avt !== "") {
+						p1 = avt.indexOf("{");
+						if (p1 === -1 || (p2 = avt.substr(p1).indexOf("}")) === -1) {
+							xsltx[1].push(avt);
+							break;
+						}
+						if (p1 !== 0) {
+							xsltx[1].push(avt.substr(0, p1));
+							avt = avt.substr(p1);
+						} else {
+							xsltx[1].push(eval(Fleur.XPathEvaluator._xp2js(avt.substr(1, p2 - 1), "", "")));
+							avt = avt.substr(p2 + 2);
+						}
+					}
+					return [xsltx];
+				}
+				if (Fleur.XsltXNames[1][inst][1] === 4 || Fleur.XsltXNames[1][inst][1] === 6) {console.log(this.nodeValue);console.log(Fleur.XPathEvaluator._xp2js(this.nodeValue, "", ""));}
+				xsltx = this.nodeValue;
+				if (Fleur.XsltXNames[1][inst][1] === 4 || Fleur.XsltXNames[1][inst][1] === 6) {
+					xsltx = eval(Fleur.XPathEvaluator._xp2js(this.nodeValue, "", ""));
+					if (Fleur.XsltXNames[1][inst][1] === 6) {
+						Fleur.XsltX._pattern2xpath(xsltx);
+					}
+				}
+				return [[inst, [xsltx]]];
+			}
+			if (this.nodeValue !== "") {
+				xsltx = [Fleur.XsltX.attribute, [[Fleur.XsltXattr["name attribute"], [this.nodeName]], [Fleur.XsltXattr["namespace attribute"], [this.namespaceURI || ""]]]];
+				avt = this.nodeValue;
+				while (avt !== "") {
+					p1 = avt.indexOf("{");
+					if (p1 === -1 || (p2 = avt.substr(p1).indexOf("}")) === -1) {
+						xsltx[1].push(avt);
+						break;
+					}
+					if (p1 !== 0) {
+						xsltx[1].push(avt.substr(0, p1));
+						avt = avt.substr(p1);
+					} else {
+						xsltx[1].push(eval(Fleur.XPathEvaluator._xp2js(avt.substr(1, p2 - 1), "", "")));
+						avt = avt.substr(p2 + 2);
+					}
+				}
+				return [xsltx];
+			}
+			return [[Fleur.XsltX.attribute, [[Fleur.XsltXattr["name attribute"], [this.nodeName]], [Fleur.XsltXattr["namespace attribute"], [this.namespaceURI || ""]]]]];
+		case Fleur.Node.ELEMENT_NODE:
+			if (!this.namespaceURI) {
+				xsltx = [[Fleur.XsltXattr["name element"], [this.nodeName]]];
+			} else if (this.namespaceURI !== "http://www.w3.org/1999/XSL/Transform") {
+				xsltx = [[Fleur.XsltXattr["name element"], [this.nodeName]], [Fleur.XsltXattr["namespace element"], [this.namespaceURI || ""]]];
+			}
+			li = this.attributes.length;
+			switch(this.getAttributeNS("http://www.w3.org/1999/XSL/Transform", "expand-text")) {
+				case "yes":
+				case "true":
+				case "1":
+					tvt = true;
+					break;
+				case "no":
+				case "false":
+				case "0":
+					tvt = false;
+			}
+			while (i < li) {
+				childx = this.attributes[i++]._toXsltX(tvt);
+				if (childx) {
+					xsltx = xsltx.concat(childx);
+				}
+			}
+			if (this.namespaceURI === "http://www.w3.org/1999/XSL/Transform" && this.localName === "text") {
+				xsltx.push(this.textContent);
+			} else {
+				lj = this.childNodes.length;
+				while (j < lj) {
+					childx = this.childNodes[j++]._toXsltX(tvt)
+					if (childx) {
+						xsltx = xsltx.concat(childx);
+					}
+				}
+			}
+			if (this.namespaceURI === "http://www.w3.org/1999/XSL/Transform") {
+				return [[Fleur.XsltX[this.localName], xsltx]];
+			}
+			return [[Fleur.XsltX.element, xsltx]];
+		case Fleur.Node.DOCUMENT_NODE:
+			return this.documentElement._toXsltX(false);
+	}
+	return clone;
+};
+Fleur.Node.prototype.toXsltX = function() {
+	var xsltx = this._toXsltX(false)[0];
+	xsltx[1].push([Fleur.XsltX.xslt, ["http://www.w3.org/1999/XSL/Transform"]]);
+	xsltx[1].push([Fleur.XsltX.xsltx, ["http://www.w3.org/1999/XSL/Transform/expression"]]);
+	xsltx[1].push([Fleur.XsltX.avtx, ["http://www.w3.org/1999/XSL/Transform/avt"]]);
+	xsltx[1].push([Fleur.XsltX.patternx, ["http://www.w3.org/1999/XSL/Transform/pattern"]]);
+	xsltx[1].push([Fleur.XQueryX.xqx, ["http://www.w3.org/2005/XQueryX"]]);
+	return [Fleur.XsltXNames, [xsltx]];
+};
+Fleur.Element.prototype.compileXslt = function() {
+	return this._toXsltX(false)[0];
+};
+Fleur.Node.prototype.transform = function(stylesheet) {
+	var ctx = {};
+	ctx._xsltx = stylesheet;
+	ctx._top = this;
+	ctx._curr = this;
+	ctx.attribute_set = [];
+	ctx.character_map = [];
+	ctx.decimal_format = {};
+	ctx.function = {};
+	ctx.import = [];
+	ctx.import_schema = [];
+	ctx.include = [];
+	ctx.key = {};
+	ctx.namespace_alias = [];
+	ctx.output = [];
+	ctx.param = {};
+	ctx.preserve_space = [];
+	ctx.strip_space = [];
+	ctx.template = [{},{}];
+	ctx.variable = {};
+	ctx.depth = 0;
+	Fleur.XsltEngine[stylesheet[0]](ctx, stylesheet[1]);
+	console.log(ctx);
+	return ctx.result;
+};
+/*
+	var i = 0, l, d, dtype, dname, dmode, dmatch, dvalue, decl, stylesheet = new Fleur.XsltStylesheet();
+	stylesheet[Fleur.XsltStylesheet.VERSION] = this.getAttribute("version");
+	stylesheet[Fleur.XsltStylesheet.ID] = this.getAttribute("id");
+	stylesheet[Fleur.XsltStylesheet.EXTENSION_ELEMENT_PREFIXES] = this.getAttribute("extension-element-prefixes");
+	stylesheet[Fleur.XsltStylesheet.EXCLUDE_RESULT_PREFIXES] = this.getAttribute("exclude-result-prefixes");
+	stylesheet[Fleur.XsltStylesheet.XPATH_DEFAULT_NAMESPACE] = this.getAttribute("xpath_default_namespace");
+	stylesheet[Fleur.XsltStylesheet.ATTRIBUTE_SET] = [];
+	stylesheet[Fleur.XsltStylesheet.CHARACTER_MAP] = [];
+	stylesheet[Fleur.XsltStylesheet.DECIMAL_FORMAT] = {};
+	stylesheet[Fleur.XsltStylesheet.FUNCTION] = {};
+	stylesheet[Fleur.XsltStylesheet.IMPORT] = [];
+	stylesheet[Fleur.XsltStylesheet.IMPORT_SCHEMA] = [];
+	stylesheet[Fleur.XsltStylesheet.INCLUDE] = [];
+	stylesheet[Fleur.XsltStylesheet.KEY] = {};
+	stylesheet[Fleur.XsltStylesheet.NAMESPACE_ALIAS] = [];
+	stylesheet[Fleur.XsltStylesheet.OUTPUT] = [];
+	stylesheet[Fleur.XsltStylesheet.PARAM] = {};
+	stylesheet[Fleur.XsltStylesheet.PRESERVE_SPACE] = [];
+	stylesheet[Fleur.XsltStylesheet.STRIP_SPACE] = [];
+	stylesheet[Fleur.XsltStylesheet.TEMPLATE] = [{},{}];
+	stylesheet[Fleur.XsltStylesheet.VARIABLE] = {};
+	l = this.children.length;
+	while (i <l) {
+		decl = this.children[i];
+		if (decl.namespaceURI === "http://www.w3.org/1999/XSL/Transform") {
+			d = [[]];
+			dname = null;
+			dmode = null;
+			switch (decl.localName) {
+				case "attribute-set":
+					dtype = Fleur.XsltStylesheet.ATTRIBUTE_SET;
+					break;
+				case "character-map":
+					dtype = Fleur.XsltStylesheet.CHARACTER_MAP;
+					break;
+				case "decimal-format":
+					dtype = Fleur.XsltStylesheet.DECIMAL_FORMAT;
+					dname = decl.getAttribute("name");
+					break;
+				case "function":
+					dtype = Fleur.XsltStylesheet.FUNCTION;
+					dname = decl.getAttribute("name");
+					break;
+				case "import":
+					dtype = Fleur.XsltStylesheet.IMPORT;
+					break;
+				case "import-schema":
+					dtype = Fleur.XsltStylesheet.IMPORT_SCHEMA;
+					break;
+				case "include":
+					dtype = Fleur.XsltStylesheet.INCLUDE;
+					break;
+				case "key":
+					dtype = Fleur.XsltStylesheet.KEY;
+					dname = decl.getAttribute("name");
+					break;
+				case "namespace-alias":
+					dtype = Fleur.XsltStylesheet.NAMESPACE_ALIAS;
+					break;
+				case "output":
+					dtype = Fleur.XsltStylesheet.OUTPUT;
+					break;
+				case "param":
+					dtype = Fleur.XsltStylesheet.PARAM;
+					dname = decl.getAttribute("name");
+					break;
+				case "preserve-space":
+					dtype = Fleur.XsltStylesheet.PRESERVE_SPACE;
+					break;
+				case "strip-space":
+					dtype = Fleur.XsltStylesheet.STRIP_SPACE;
+					break;
+				case "template":
+					dtype = Fleur.XsltStylesheet.TEMPLATE;
+					dmode = decl.getAttribute("mode");
+					if (dmode === "") {
+						dmode = "#default";
+					}
+					dname = decl.getAttribute("name");
+					dmatch = decl.getAttribute("match");
+					if (dmatch !== "") {
+						d[Fleur.XsltStylesheet.TEMPLATE_MATCH] = dmatch;
+					}
+					dvalue = decl.getAttribute("priority");
+					if (dvalue !== "") {
+						d[Fleur.XsltStylesheet.TEMPLATE_PRIORITY] = dvalue;
+					}
+					break;
+				case "variable":
+					dtype = Fleur.XsltStylesheet.VARIABLE;
+					dname = decl.getAttribute("name");
+					dvalue = decl.getAttribute("select");
+					if (dvalue !== "") {
+						d[Fleur.XsltStylesheet.VARIABLE_SELECT] = dvalue;
+					}
+					dvalue = decl.getAttribute("as");
+					if (dvalue !== "") {
+						d[Fleur.XsltStylesheet.VARIABLE_AS] = dvalue;
+					}
+					break;
+				default:
+			}
+			if (dmode !== null) {
+				if (dname !== "") {
+					stylesheet[dtype][0][dname] = d;
+				}
+				if (dmatch !== "") {
+					if (stylesheet[dtype][1][dmode]) {
+						stylesheet[dtype][1][dmode].push(d);
+					} else {
+						stylesheet[dtype][1][dmode] = [d];
+					}
+				}
+			} else if (dname !== null) {
+				stylesheet[dtype][dname] = d;
+			} else {
+				stylesheet[dtype].push(d);
+			}
+		}
+		i++;
+	}
+	return stylesheet;
 };
 */
 Fleur.Map = function() {
@@ -1470,7 +1936,7 @@ Fleur.Document.prototype.createDocumentFragment = function() {
 };
 Fleur.Document.prototype.createElement = function(tagName) {
 	var node = new Fleur.Element();
-	if (!Fleur.Node.QNameReg.test(tagName)) {
+	if (!Fleur.Node.QNameReg.test(tagName) && (this.mediatype === "text/xml" || this.mediatype === "application/xml")) {
 		if (Fleur.Node.QNameCharsReg.test(tagName)) {
 			throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
 		} else {
@@ -1479,9 +1945,9 @@ Fleur.Document.prototype.createElement = function(tagName) {
 	}
 	node._setOwnerDocument(this);
 	node.nodeName = tagName;
-	this.namespaceURI = null;
-	this.localName = tagName;
-	this.prefix = null;
+	node.namespaceURI = null;
+	node.localName = tagName;
+	node.prefix = null;
 	node.childNodes = new Fleur.NodeList();
 	node.children = new Fleur.NodeList();
 	node.textContent = "";
@@ -1557,15 +2023,6 @@ Fleur.Document.prototype.createEntry = function(name) {
 	node.textContent = "";
 	return node;
 };
-Fleur.Types = {
-	"http://www.w3.org/2001/XMLSchema": {
-		"string": new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "string"),
-		"double": new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "double"),
-		"boolean": new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "boolean"),
-		"regex": new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "regex")
-	}
-};
-Fleur.Type_string = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["string"];
 Fleur.Document.prototype.createTextNode = function(data) {
 	var node = new Fleur.Text();
 	node._setOwnerDocument(this);
@@ -1672,6 +2129,16 @@ Fleur.Document.prototype._serializeToString = function(indent) {
 	}
 	return s;
 };
+Fleur.Document.prototype.compileXslt = function() {
+	return this.documentElement.compileXslt();
+};
+Fleur.Document.prototype.evaluate = function(expression, contextNode, nsResolver, type, result) {
+	var compiled = eval(Fleur.XPathEvaluator._xp2js(expression, "", ""));
+	var ctx = {_curr: contextNode || this};
+	Fleur.XQueryEngine[compiled[0]](ctx, compiled[1]);
+	result = ctx._result;
+	return ctx._result;
+}
 /*
 Fleur.Document.prototype.normalizeDocument = function() {
 };
@@ -1680,20 +2147,46 @@ Fleur.Document.prototype.normalizeDocument = function() {
 Fleur.Document.prototype.renameNode = function(n, namespaceURI, qualifiedName) {
 };
 */
-Fleur.Node.prototype._parseCSVFromString = function(s, sep, head) {
-	var index, offset = 0, end, doc = this.ownerDocument || this, currnode = this, eltnode;
+Fleur.XsltStylesheet = function() {};
+Fleur.XsltStylesheet.prototype = new Array();
+Fleur.Node.prototype._appendFromCSVString = function(s, config) {
+	var index, offset = 0, end, doc = this.ownerDocument || this, eltnode, sep, head = config.header === "present", ignore;
 	var headers = [];
 	var first = head;
 	var col = 0;
 	var rowcat = "";
 	var row = "";
-	sep = sep || ";";
+	var key = config.key ? parseInt(config.key, 10) : null;
+	var currparent;
+	var mapnode;
+	sep = config.separator ? decodeURIComponent(config.separator) : ",";
 	s = s.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
 	if (s.charAt(s.length - 1) !== "\n") {
 		s += "\n";
 	}
+	ignore = Math.max(parseInt(config.ignore, 10) || 0, 0);
 	end = s.length;
-	var currseq = doc.createSequence();
+	if (ignore !== 0) {
+		while (offset !== end) {
+			if (s.charAt(offset) === "\n") {
+				ignore--;
+				if (ignore === 0) {
+					offset++;
+					break;
+				}
+			}
+			offset++;
+		}
+	}
+	if (key !== null) {
+		mapnode = doc.createMap();
+		currparent = new Fleur.Entry();
+		currparent._setOwnerDocument(this);
+		currparent.childNodes = new Fleur.NodeList();
+		currparent.children = new Fleur.NodeList();
+	} else {
+		currparent = doc.createSequence();
+	}
 	while (offset !== end) {
 		var v = "";
 		if (s.charAt(offset) === '"') {
@@ -1720,20 +2213,39 @@ Fleur.Node.prototype._parseCSVFromString = function(s, sep, head) {
 		}
 		if (first) {
 			headers.push(v);
+			if (col === key) {
+				eltnode = doc.createElement(headers[col]);
+				eltnode.appendChild(mapnode);
+				this.appendChild(eltnode);
+			}
 		} else {
 			rowcat += v;
-			if (head) {
-				eltnode = doc.createElement(headers[col]);
-				eltnode.appendChild(doc.createTextNode(v));
-				currseq.appendChild(eltnode);
+			if (col === key) {
+				currparent.nodeName = currparent.localName = v;
 			} else {
-				currseq.appendChild(doc.createTextNode(v));
+				if (head) {
+					eltnode = doc.createElement(headers[col]);
+					if (v !== "") {
+						eltnode.appendChild(doc.createTextNode(v));
+					}
+					currparent.appendChild(eltnode);
+				} else {
+					currparent.appendChild(doc.createTextNode(v));
+				}
 			}
 		}
 		if (s.charAt(offset) === "\n") {
 			if (!first && rowcat !== "") {
-				currnode.appendChild(currseq);
-				currseq = doc.createSequence();
+				if (key !== null) {
+					mapnode.setEntryNode(currparent);
+					currparent = new Fleur.Entry();
+					currparent._setOwnerDocument(this);
+					currparent.childNodes = new Fleur.NodeList();
+					currparent.children = new Fleur.NodeList();
+				} else {
+					this.appendChild(currparent);
+					currparent = doc.createSequence();
+				}
 			}
 			first = false;
 			col = 0;
@@ -1744,8 +2256,11 @@ Fleur.Node.prototype._parseCSVFromString = function(s, sep, head) {
 		}
 		offset++;
 	}
+	if (key !== null && !head) {
+		this.appendChild(mapnode);
+	}
 };
-Fleur.Node.prototype._parseXMLFromString = function(s) {
+Fleur.Node.prototype._appendFromXMLString = function(s) {
 	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = [], doc = this.ownerDocument || this, currnode = this, eltnode, attrnode, c,
 		seps_pi = " \t\n\r?", seps_dtd = " \t\n\r[>", seps_close = " \t\n\r>", seps_elt = " \t\n\r/>", seps_attr = " \t\n\r=", seps_value = " \t\n\r'\"", seps = " \t\n\r",
 		n, namespaces = {}, newnamespaces = {}, pindex, prefix, localName, dtdtype, dtdpublicid, dtdsystemid, entityvalue, notationvalue;
@@ -2156,7 +2671,7 @@ Fleur.Node._parseTextAdvance = function(n, states, grammar, selection) {
 		}
 	}
 };
-Fleur.Node.prototype._parseTextFromString = function(s, grammar) {
+Fleur.Node.prototype._appendFromGrammarString = function(s, grammar) {
 	var states = [[]];
 	var selection = [];
 	for (var i = 0, l = grammar[0][0].length; i < l; i++) {
@@ -2188,6 +2703,26 @@ Fleur.Node.prototype._parseTextFromString = function(s, grammar) {
 			this._parseFromArray(grammar[1], [laststates[i][4][0]]);
 			break;
 		}
+	}
+	return this;
+};
+Fleur.Node.prototype.appendFromString = function(s, mediatype, grammar) {
+	var doc = this.ownerDocument || this, media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length;
+	while (i < l) {
+		param = paramreg.exec(media[i]);
+		config[param[1]] = param[2];
+		i++;
+	}
+	switch(media[0].replace(/^\s+|\s+$/gm,'')) {
+		case "text/csv":
+			this._appendFromCSVString(s, config);
+			break;
+		case "application/xml":
+		case "text/xml":
+			this._appendFromXMLString(s);
+			break;
+		default:
+			this._appendFromGrammarString(s, grammar);
 	}
 	return this;
 };
@@ -2281,7 +2816,7 @@ Object.defineProperties(Fleur.DocumentFragment.prototype, {
 Fleur.Nodes = function() {};
 
 Fleur.DOMParser = function() {};
-Fleur.Node.prototype._parseFromArray = function(names, os) {
+Fleur.Node.prototype.appendFromArray = function(names, os) {
 	var i, l, o, n, name, doc = this.ownerDocument || this;
 	for (i = 0, l = os.length; i < l; i++) {
 		o = os[i];
@@ -2292,21 +2827,21 @@ Fleur.Node.prototype._parseFromArray = function(names, os) {
 			switch (name[0]) {
 				case Fleur.Node.ELEMENT_NODE:
 					n = doc.createElementNS(names[0][name[1]], name[2]);
-					n._parseFromArray(names, o[1]);
+					n.appendFromArray(names, o[1]);
 					break;
 				case Fleur.Node.ATTRIBUTE_NODE:
 					n = doc.createAttributeNS(names[0][name[1]], name[2]);
-					n.nodeValue = o[1];
+					n.nodeValue = o[1][0];
 					this.setAttributeNodeNS(n);
 					continue;
 				case Fleur.Node.CDATA_NODE:
-					n = doc.createCDATASection(o[1]);
+					n = doc.createCDATASection(o[1][0]);
 					break;
 				case Fleur.Node.PROCESSING_INSTRUCTION_NODE:
 					n = doc.createProcessingInstruction(o[1], o[2]);
 					break;
 				case Fleur.Node.COMMENT_NODE:
-					n = doc.createComment(o[1]);
+					n = doc.createComment(o[1][0]);
 					break;
 			}
 		}
@@ -2318,9 +2853,9 @@ Fleur.DOMParser.prototype.parseFromArray = function(o) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	return doc._parseFromArray(o[0], o[1]);
+	return doc.appendFromArray(o[0], o[1]);
 };
-Fleur.Node.prototype._parseFromJSON = function(o) {
+Fleur.Node.prototype.appendFromJSON = function(o) {
 	if (o === null) {
 		return;
 	}
@@ -2337,11 +2872,11 @@ Fleur.Node.prototype._parseFromJSON = function(o) {
 			break;
 		default:
 			if (o instanceof RegExp) {
-				n = doc.createTypedValueNode("http://www.w3.org/2001/XMLSchema", "regex", o);
+				n = doc.createTypedValueNode("http://www.agencexml.com/types", "regex", o);
 			} else if (typeof o.length === "number") {
 				n = doc.createArray();
 				for (var i = 0, l = o.length; i < l; i++) {
-					n._parseFromJSON(o[i]);
+					n._appendFromJSON(o[i]);
 				}
 			} else {
 				n = doc.createMap();
@@ -2349,7 +2884,7 @@ Fleur.Node.prototype._parseFromJSON = function(o) {
 					if (o.hasOwnProperty(k)) {
 						var e = doc.createEntry(k);
 						n.setEntryNode(e);
-						e._parseFromJSON(o[k]);
+						e._appendFromJSON(o[k]);
 					}
 				}
 			}
@@ -2361,24 +2896,13 @@ Fleur.DOMParser.prototype.parseFromJSON = function(o) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	return doc._parseFromJSON(o);
+	return doc.appendFromJSON(o);
 };
 Fleur.DOMParser.prototype.parseFromString = function(s, mediatype, grammar) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	switch(mediatype) {
-		case "text/csv":
-			doc._parseCSVFromString(s);
-			break;
-		case "application/xml":
-		case "text/xml":
-			doc._parseXMLFromString(s);
-			break;
-		default:
-			doc._parseTextFromString(s, grammar);
-	}
-	return doc;
+	return doc.appendFromString(s, mediatype, grammar);
 };
 
 Fleur.Serializer = function() {};
@@ -2432,9 +2956,11 @@ Fleur.Serializer.prototype._serializeXMLToString = function(node, indent, offset
 	}
 };
 Fleur.Serializer.escapeJSON = function(s) {
-try {
-	return s.replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t").replace(/\\/g, "\\");
-} catch (e) { return "";}
+	try {
+		return s.replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t").replace(/\\/g, "\\");
+	} catch (e) {
+		return "";
+	}
 };
 Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offset, inline, comma) {
 	var s, i, l, quote;
@@ -2494,13 +3020,97 @@ Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offse
 			return s;
 	}
 };
+Fleur.Serializer.escapeCSV = function(s, sep) {
+	if (s.indexOf(sep) !== -1) {
+		return '"' + s.replace(/"/g, '""') + '"';
+	} else {
+		return s;
+	}
+};
+Fleur.Serializer.prototype._serializeCSVToString = function(node, head, key, sep, level) {
+	var s = "", s2, s3, names, i, l, rowname, nextlevel = level, headref;
+	switch (node.nodeType) {
+		case Fleur.Node.ELEMENT_NODE:
+		case Fleur.Node.DOCUMENT_NODE:
+			if (node.children.length === 0) {
+				nextlevel = 2;
+			} else if (node.nodeType === Fleur.Node.ELEMENT_NODE) {
+				nextlevel = level + 1;
+			}
+			if (node.children.length > 1) {
+				l = node.children.length;
+				i = 1;
+				rowname = node.children[0].nodeName;
+				while (i < l) {
+					if (rowname !== node.children[i].nodeName) {
+						nextlevel++;
+						break;
+					}
+					i++;
+				}
+			}
+			if (head && level === 0 && nextlevel !== 0) {
+				if (node.children.length !== 0) {
+					headref = nextlevel === level + 1 ? node.children[0] : node;
+					l = headref.children.length;
+					i = 0;
+					while (i < l) {
+						if (s !== "") {
+							s += sep;
+						}
+						s += headref.children[i].nodeName;
+						i++;
+					}
+				} else {
+					s  = node.nodeName;
+				}
+				s += "\n";
+			}
+			l = node.childNodes.length;
+			i = 0;
+			s3 = "";
+			while (i < l) {
+				s2 = this._serializeCSVToString(node.childNodes[i], head, key, sep, nextlevel);
+				if (s2) {
+					if (s3 !== "") {
+						s3 += nextlevel === 1 ? "\n" : nextlevel - level === 2 ? sep : "";
+					}
+					s3 += s2;
+				}
+				i++;
+			}
+			return s + s3;
+		case Fleur.Node.ARRAY_NODE:
+		case Fleur.Node.SEQUENCE_NODE:
+		case Fleur.Node.MAP_NODE:
+			return null;
+		case Fleur.Node.TEXT_NODE:
+			if (head && level !== 2) {
+				s = (node.parentNode ? Fleur.Serializer.escapeCSV(node.nodeName) : "#text") + "\n";
+			}
+			s += Fleur.Serializer.escapeCSV(node.data);
+			return s;
+		default:
+			return null;
+	}
+}
 Fleur.Serializer.prototype.serializeToString = function(node, mediatype, indent) {
-	switch (mediatype) {
+	var media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length, ser;
+	while (i < l) {
+		param = paramreg.exec(media[i]);
+		config[param[1]] = param[2];
+		i++;
+	}
+	switch (media[0].replace(/^\s+|\s+$/gm,'')) {
+		case "text/xml":
 		case "application/xml":
 			var ser = this._serializeXMLToString(node, indent, "");
 			if (indent && ser.charAt(ser.length - 1) === "\n") {
 				ser = ser.substr(0, ser.length - 1);
 			}
+			return ser;
+		case "text/csv":
+			ser = this._serializeCSVToString(node, config.header === "present", config.key ? parseInt(config.key, 10) : null, config.separator ? decodeURIComponent(config.separator) : ",", 0);
 			return ser;
 		case "application/json":
 		case "text/json":
@@ -2517,6 +3127,1573 @@ Fleur.XMLSerializer.prototype = new Fleur.Serializer();
 Fleur.XMLSerializer.prototype.serializeToString = function(node, indent) {
 	return Fleur.Serializer.prototype.serializeToString.call(this, node, "application/xml", indent);
 };
+
+Fleur.Xlength = 0;
+Fleur.XQueryXNames = [["http://www.w3.org/2005/XQueryX", "http://www.w3.org/2000/xmlns/", "http://www.w3.org/2001/XMLSchema-instance"], []];
+Fleur.XQueryX = {};
+Fleur.XQueryXNames[1][Fleur.XQueryX.NCName = Fleur.Xlength++] = [1, 0, "xqx:NCName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.QName = Fleur.Xlength++] = [1, 0, "xqx:QName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.URIExpr = Fleur.Xlength++] = [1, 0, "xqx:URIExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.Wildcard = Fleur.Xlength++] = [1, 0, "xqx:Wildcard"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.addOp = Fleur.Xlength++] = [1, 0, "xqx:addOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.allowingEmpty = Fleur.Xlength++] = [1, 0, "xqx:allowingEmpty"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.andOp = Fleur.Xlength++] = [1, 0, "xqx:andOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.annotation = Fleur.Xlength++] = [1, 0, "xqx:annotation"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.annotationName = Fleur.Xlength++] = [1, 0, "xqx:annotationName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.anyElementTest = Fleur.Xlength++] = [1, 0, "xqx:anyElementTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.anyFunctionTest = Fleur.Xlength++] = [1, 0, "xqx:anyFunctionTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.anyItemType = Fleur.Xlength++] = [1, 0, "xqx:anyItemType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.anyKindTest = Fleur.Xlength++] = [1, 0, "xqx:anyKindTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.argExpr = Fleur.Xlength++] = [1, 0, "xqx:argExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.argumentPlaceholder = Fleur.Xlength++] = [1, 0, "xqx:argumentPlaceholder"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.arguments = Fleur.Xlength++] = [1, 0, "xqx:arguments"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.arithmeticOp = Fleur.Xlength++] = [1, 0, "xqx:arithmeticOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.atomicType = Fleur.Xlength++] = [1, 0, "xqx:atomicType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeConstructor = Fleur.Xlength++] = [1, 0, "xqx:attributeConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeList = Fleur.Xlength++] = [1, 0, "xqx:attributeList"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeName = Fleur.Xlength++] = [1, 0, "xqx:attributeName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeTest = Fleur.Xlength++] = [1, 0, "xqx:attributeTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeValue = Fleur.Xlength++] = [1, 0, "xqx:attributeValue"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.attributeValueExpr = Fleur.Xlength++] = [1, 0, "xqx:attributeValueExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.baseUriDecl = Fleur.Xlength++] = [1, 0, "xqx:baseUriDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.bindingSequence = Fleur.Xlength++] = [1, 0, "xqx:bindingSequence"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.boundarySpaceDecl = Fleur.Xlength++] = [1, 0, "xqx:boundarySpaceDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.castExpr = Fleur.Xlength++] = [1, 0, "xqx:castExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.castableExpr = Fleur.Xlength++] = [1, 0, "xqx:castableExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.catchClause = Fleur.Xlength++] = [1, 0, "xqx:catchClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.catchErrorList = Fleur.Xlength++] = [1, 0, "xqx:catchErrorList"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.catchExpr = Fleur.Xlength++] = [1, 0, "xqx:catchExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.collation = Fleur.Xlength++] = [1, 0, "xqx:collation"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.commentTest = Fleur.Xlength++] = [1, 0, "xqx:commentTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.comparisonOp = Fleur.Xlength++] = [1, 0, "xqx:comparisonOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedAttributeConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedAttributeConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedCommentConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedCommentConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedDocumentConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedDocumentConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedElementConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedElementConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedNamespaceConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedNamespaceConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedPIConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedPIConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.computedTextConstructor = Fleur.Xlength++] = [1, 0, "xqx:computedTextConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.constantExpr = Fleur.Xlength++] = [1, 0, "xqx:constantExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.constructionDecl = Fleur.Xlength++] = [1, 0, "xqx:constructionDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.constructorFunctionExpr = Fleur.Xlength++] = [1, 0, "xqx:constructorFunctionExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.contentExpr = Fleur.Xlength++] = [1, 0, "xqx:contentExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.contextItemDecl = Fleur.Xlength++] = [1, 0, "xqx:contextItemDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.contextItemExpr = Fleur.Xlength++] = [1, 0, "xqx:contextItemExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.copyNamespacesDecl = Fleur.Xlength++] = [1, 0, "xqx:copyNamespacesDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.countClause = Fleur.Xlength++] = [1, 0, "xqx:countClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.currentItem = Fleur.Xlength++] = [1, 0, "xqx:currentItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalConstantExpr = Fleur.Xlength++] = [1, 0, "xqx:decimalConstantExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalFormatDecl = Fleur.Xlength++] = [1, 0, "xqx:decimalFormatDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalFormatName = Fleur.Xlength++] = [1, 0, "xqx:decimalFormatName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalFormatParam = Fleur.Xlength++] = [1, 0, "xqx:decimalFormatParam"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalFormatParamName = Fleur.Xlength++] = [1, 0, "xqx:decimalFormatParamName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.decimalFormatParamValue = Fleur.Xlength++] = [1, 0, "xqx:decimalFormatParamValue"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.defaultCollationDecl = Fleur.Xlength++] = [1, 0, "xqx:defaultCollationDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.defaultElementNamespace = Fleur.Xlength++] = [1, 0, "xqx:defaultElementNamespace"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.defaultNamespaceCategory = Fleur.Xlength++] = [1, 0, "xqx:defaultNamespaceCategory"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.defaultNamespaceDecl = Fleur.Xlength++] = [1, 0, "xqx:defaultNamespaceDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.divOp = Fleur.Xlength++] = [1, 0, "xqx:divOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.documentTest = Fleur.Xlength++] = [1, 0, "xqx:documentTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.doubleConstantExpr = Fleur.Xlength++] = [1, 0, "xqx:doubleConstantExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.dynamicFunctionInvocationExpr = Fleur.Xlength++] = [1, 0, "xqx:dynamicFunctionInvocationExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.elementConstructor = Fleur.Xlength++] = [1, 0, "xqx:elementConstructor"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.elementContent = Fleur.Xlength++] = [1, 0, "xqx:elementContent"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.elementName = Fleur.Xlength++] = [1, 0, "xqx:elementName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.elementTest = Fleur.Xlength++] = [1, 0, "xqx:elementTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.elseClause = Fleur.Xlength++] = [1, 0, "xqx:elseClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.emptyOrderingDecl = Fleur.Xlength++] = [1, 0, "xqx:emptyOrderingDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.emptyOrderingMode = Fleur.Xlength++] = [1, 0, "xqx:emptyOrderingMode"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.encoding = Fleur.Xlength++] = [1, 0, "xqx:encoding"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.endExpr = Fleur.Xlength++] = [1, 0, "xqx:endExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.eqOp = Fleur.Xlength++] = [1, 0, "xqx:eqOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.equalOp = Fleur.Xlength++] = [1, 0, "xqx:equalOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.exceptOp = Fleur.Xlength++] = [1, 0, "xqx:exceptOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.expr = Fleur.Xlength++] = [1, 0, "xqx:expr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.extensionExpr = Fleur.Xlength++] = [1, 0, "xqx:extensionExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.external = Fleur.Xlength++] = [1, 0, "xqx:external"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.externalDefinition = Fleur.Xlength++] = [1, 0, "xqx:externalDefinition"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.filterExpr = Fleur.Xlength++] = [1, 0, "xqx:filterExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.firstOperand = Fleur.Xlength++] = [1, 0, "xqx:firstOperand"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.flworExpr = Fleur.Xlength++] = [1, 0, "xqx:flworExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.forClause = Fleur.Xlength++] = [1, 0, "xqx:forClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.forClauseItem = Fleur.Xlength++] = [1, 0, "xqx:forClauseItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.forExpr = Fleur.Xlength++] = [1, 0, "xqx:forExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.forLetClauseItemExtensions = Fleur.Xlength++] = [1, 0, "xqx:forLetClauseItemExtensions"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.functionBody = Fleur.Xlength++] = [1, 0, "xqx:functionBody"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.functionCallExpr = Fleur.Xlength++] = [1, 0, "xqx:functionCallExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.functionDecl = Fleur.Xlength++] = [1, 0, "xqx:functionDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.functionItem = Fleur.Xlength++] = [1, 0, "xqx:functionItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.functionName = Fleur.Xlength++] = [1, 0, "xqx:functionName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.geOp = Fleur.Xlength++] = [1, 0, "xqx:geOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.generalComparisonOp = Fleur.Xlength++] = [1, 0, "xqx:generalComparisonOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.greaterThanOp = Fleur.Xlength++] = [1, 0, "xqx:greaterThanOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.greaterThanOrEqualOp = Fleur.Xlength++] = [1, 0, "xqx:greaterThanOrEqualOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.groupByClause = Fleur.Xlength++] = [1, 0, "xqx:groupByClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.groupVarInitialize = Fleur.Xlength++] = [1, 0, "xqx:groupVarInitialize"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.groupingSpec = Fleur.Xlength++] = [1, 0, "xqx:groupingSpec"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.gtOp = Fleur.Xlength++] = [1, 0, "xqx:gtOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.idivOp = Fleur.Xlength++] = [1, 0, "xqx:idivOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.ifClause = Fleur.Xlength++] = [1, 0, "xqx:ifClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.ifThenElseExpr = Fleur.Xlength++] = [1, 0, "xqx:ifThenElseExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.inheritMode = Fleur.Xlength++] = [1, 0, "xqx:inheritMode"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.inlineFunctionExpr = Fleur.Xlength++] = [1, 0, "xqx:inlineFunctionExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.instanceOfExpr = Fleur.Xlength++] = [1, 0, "xqx:instanceOfExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.integerConstantExpr = Fleur.Xlength++] = [1, 0, "xqx:integerConstantExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.intersectOp = Fleur.Xlength++] = [1, 0, "xqx:intersectOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.isOp = Fleur.Xlength++] = [1, 0, "xqx:isOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.itemType = Fleur.Xlength++] = [1, 0, "xqx:itemType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.kindTest = Fleur.Xlength++] = [1, 0, "xqx:kindTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.leOp = Fleur.Xlength++] = [1, 0, "xqx:leOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.lessThanOp = Fleur.Xlength++] = [1, 0, "xqx:lessThanOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.lessThanOrEqualOp = Fleur.Xlength++] = [1, 0, "xqx:lessThanOrEqualOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.letClause = Fleur.Xlength++] = [1, 0, "xqx:letClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.letClauseItem = Fleur.Xlength++] = [1, 0, "xqx:letClauseItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.letExpr = Fleur.Xlength++] = [1, 0, "xqx:letExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.libraryModule = Fleur.Xlength++] = [1, 0, "xqx:libraryModule"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.logicalOp = Fleur.Xlength++] = [1, 0, "xqx:logicalOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.ltOp = Fleur.Xlength++] = [1, 0, "xqx:ltOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.mainModule = Fleur.Xlength++] = [1, 0, "xqx:mainModule"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.modOp = Fleur.Xlength++] = [1, 0, "xqx:modOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.module = Fleur.Xlength++] = [1, 0, "xqx:module"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.moduleDecl = Fleur.Xlength++] = [1, 0, "xqx:moduleDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.moduleImport = Fleur.Xlength++] = [1, 0, "xqx:moduleImport"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.multiplyOp = Fleur.Xlength++] = [1, 0, "xqx:multiplyOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.name = Fleur.Xlength++] = [1, 0, "xqx:name"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nameTest = Fleur.Xlength++] = [1, 0, "xqx:nameTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.namedFunctionRef = Fleur.Xlength++] = [1, 0, "xqx:namedFunctionRef"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.namespaceDecl = Fleur.Xlength++] = [1, 0, "xqx:namespaceDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.namespaceDeclaration = Fleur.Xlength++] = [1, 0, "xqx:namespaceDeclaration"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.namespacePrefix = Fleur.Xlength++] = [1, 0, "xqx:namespacePrefix"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.namespaceTest = Fleur.Xlength++] = [1, 0, "xqx:namespaceTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.neOp = Fleur.Xlength++] = [1, 0, "xqx:neOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nextItem = Fleur.Xlength++] = [1, 0, "xqx:nextItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nillable = Fleur.Xlength++] = [1, 0, "xqx:nillable"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nodeAfterOp = Fleur.Xlength++] = [1, 0, "xqx:nodeAfterOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nodeBeforeOp = Fleur.Xlength++] = [1, 0, "xqx:nodeBeforeOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nodeComparisonOp = Fleur.Xlength++] = [1, 0, "xqx:nodeComparisonOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.notEqualOp = Fleur.Xlength++] = [1, 0, "xqx:notEqualOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.occurrenceIndicator = Fleur.Xlength++] = [1, 0, "xqx:occurrenceIndicator"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.operand = Fleur.Xlength++] = [1, 0, "xqx:operand"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.operatorExpr = Fleur.Xlength++] = [1, 0, "xqx:operatorExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.optionContents = Fleur.Xlength++] = [1, 0, "xqx:optionContents"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.optionDecl = Fleur.Xlength++] = [1, 0, "xqx:optionDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.optionName = Fleur.Xlength++] = [1, 0, "xqx:optionName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.optional = Fleur.Xlength++] = [1, 0, "xqx:optional"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orOp = Fleur.Xlength++] = [1, 0, "xqx:orOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderByClause = Fleur.Xlength++] = [1, 0, "xqx:orderByClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderByExpr = Fleur.Xlength++] = [1, 0, "xqx:orderByExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderBySpec = Fleur.Xlength++] = [1, 0, "xqx:orderBySpec"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderComparisonOp = Fleur.Xlength++] = [1, 0, "xqx:orderComparisonOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderModifier = Fleur.Xlength++] = [1, 0, "xqx:orderModifier"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderedExpr = Fleur.Xlength++] = [1, 0, "xqx:orderedExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderingKind = Fleur.Xlength++] = [1, 0, "xqx:orderingKind"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.orderingModeDecl = Fleur.Xlength++] = [1, 0, "xqx:orderingModeDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.param = Fleur.Xlength++] = [1, 0, "xqx:param"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.paramList = Fleur.Xlength++] = [1, 0, "xqx:paramList"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.paramTypeList = Fleur.Xlength++] = [1, 0, "xqx:paramTypeList"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.parenthesizedItemType = Fleur.Xlength++] = [1, 0, "xqx:parenthesizedItemType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.pathExpr = Fleur.Xlength++] = [1, 0, "xqx:pathExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.piTarget = Fleur.Xlength++] = [1, 0, "xqx:piTarget"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.piTargetExpr = Fleur.Xlength++] = [1, 0, "xqx:piTargetExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.piTest = Fleur.Xlength++] = [1, 0, "xqx:piTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.piValueExpr = Fleur.Xlength++] = [1, 0, "xqx:piValueExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.positionalVariableBinding = Fleur.Xlength++] = [1, 0, "xqx:positionalVariableBinding"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.pragma = Fleur.Xlength++] = [1, 0, "xqx:pragma"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.pragmaContents = Fleur.Xlength++] = [1, 0, "xqx:pragmaContents"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.pragmaName = Fleur.Xlength++] = [1, 0, "xqx:pragmaName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.predicateExpr = Fleur.Xlength++] = [1, 0, "xqx:predicateExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.predicates = Fleur.Xlength++] = [1, 0, "xqx:predicates"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prefix = Fleur.Xlength++] = [1, 0, "xqx:prefix"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prefixExpr = Fleur.Xlength++] = [1, 0, "xqx:prefixExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.preserveMode = Fleur.Xlength++] = [1, 0, "xqx:preserveMode"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.previousItem = Fleur.Xlength++] = [1, 0, "xqx:previousItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prolog = Fleur.Xlength++] = [1, 0, "xqx:prolog"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prologPartOneItem = Fleur.Xlength++] = [1, 0, "xqx:prologPartOneItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prologPartTwoItem = Fleur.Xlength++] = [1, 0, "xqx:prologPartTwoItem"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.quantifiedExpr = Fleur.Xlength++] = [1, 0, "xqx:quantifiedExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.quantifiedExprInClause = Fleur.Xlength++] = [1, 0, "xqx:quantifiedExprInClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.quantifier = Fleur.Xlength++] = [1, 0, "xqx:quantifier"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.queryBody = Fleur.Xlength++] = [1, 0, "xqx:queryBody"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.rangeSequenceExpr = Fleur.Xlength++] = [1, 0, "xqx:rangeSequenceExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.resultExpr = Fleur.Xlength++] = [1, 0, "xqx:resultExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.returnClause = Fleur.Xlength++] = [1, 0, "xqx:returnClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.rootExpr = Fleur.Xlength++] = [1, 0, "xqx:rootExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.schemaAttributeTest = Fleur.Xlength++] = [1, 0, "xqx:schemaAttributeTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.schemaElementTest = Fleur.Xlength++] = [1, 0, "xqx:schemaElementTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.schemaImport = Fleur.Xlength++] = [1, 0, "xqx:schemaImport"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.secondOperand = Fleur.Xlength++] = [1, 0, "xqx:secondOperand"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.sequenceExpr = Fleur.Xlength++] = [1, 0, "xqx:sequenceExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.sequenceType = Fleur.Xlength++] = [1, 0, "xqx:sequenceType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.sequenceTypeUnion = Fleur.Xlength++] = [1, 0, "xqx:sequenceTypeUnion"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.setOp = Fleur.Xlength++] = [1, 0, "xqx:setOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.simpleMapExpr = Fleur.Xlength++] = [1, 0, "xqx:simpleMapExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.singleType = Fleur.Xlength++] = [1, 0, "xqx:singleType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.slidingWindowClause = Fleur.Xlength++] = [1, 0, "xqx:slidingWindowClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.sourceExpr = Fleur.Xlength++] = [1, 0, "xqx:sourceExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.stable = Fleur.Xlength++] = [1, 0, "xqx:stable"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.star = Fleur.Xlength++] = [1, 0, "xqx:star"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.startExpr = Fleur.Xlength++] = [1, 0, "xqx:startExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.stepExpr = Fleur.Xlength++] = [1, 0, "xqx:stepExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.stringConcatenateOp = Fleur.Xlength++] = [1, 0, "xqx:stringConcatenateOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.stringConstantExpr = Fleur.Xlength++] = [1, 0, "xqx:stringConstantExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.stringOp = Fleur.Xlength++] = [1, 0, "xqx:stringOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.subtractOp = Fleur.Xlength++] = [1, 0, "xqx:subtractOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.switchCaseExpr = Fleur.Xlength++] = [1, 0, "xqx:switchCaseExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.switchExpr = Fleur.Xlength++] = [1, 0, "xqx:switchExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.switchExprCaseClause = Fleur.Xlength++] = [1, 0, "xqx:switchExprCaseClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.switchExprDefaultClause = Fleur.Xlength++] = [1, 0, "xqx:switchExprDefaultClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.tagName = Fleur.Xlength++] = [1, 0, "xqx:tagName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.tagNameExpr = Fleur.Xlength++] = [1, 0, "xqx:tagNameExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.targetLocation = Fleur.Xlength++] = [1, 0, "xqx:targetLocation"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.targetNamespace = Fleur.Xlength++] = [1, 0, "xqx:targetNamespace"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.textTest = Fleur.Xlength++] = [1, 0, "xqx:textTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.thenClause = Fleur.Xlength++] = [1, 0, "xqx:thenClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.treatExpr = Fleur.Xlength++] = [1, 0, "xqx:treatExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.tryCatchExpr = Fleur.Xlength++] = [1, 0, "xqx:tryCatchExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.tryClause = Fleur.Xlength++] = [1, 0, "xqx:tryClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.tumblingWindowClause = Fleur.Xlength++] = [1, 0, "xqx:tumblingWindowClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typeDeclaration = Fleur.Xlength++] = [1, 0, "xqx:typeDeclaration"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typeName = Fleur.Xlength++] = [1, 0, "xqx:typeName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typedFunctionTest = Fleur.Xlength++] = [1, 0, "xqx:typedFunctionTest"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typedVariableBinding = Fleur.Xlength++] = [1, 0, "xqx:typedVariableBinding"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typeswitchExpr = Fleur.Xlength++] = [1, 0, "xqx:typeswitchExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typeswitchExprCaseClause = Fleur.Xlength++] = [1, 0, "xqx:typeswitchExprCaseClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.typeswitchExprDefaultClause = Fleur.Xlength++] = [1, 0, "xqx:typeswitchExprDefaultClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.unaryMinusOp = Fleur.Xlength++] = [1, 0, "xqx:unaryMinusOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.unaryPlusOp = Fleur.Xlength++] = [1, 0, "xqx:unaryPlusOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.unionOp = Fleur.Xlength++] = [1, 0, "xqx:unionOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.unorderedExpr = Fleur.Xlength++] = [1, 0, "xqx:unorderedExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.uri = Fleur.Xlength++] = [1, 0, "xqx:uri"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.validateExpr = Fleur.Xlength++] = [1, 0, "xqx:validateExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.validationMode = Fleur.Xlength++] = [1, 0, "xqx:validationMode"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.value = Fleur.Xlength++] = [1, 0, "xqx:value"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.valueComparisonOp = Fleur.Xlength++] = [1, 0, "xqx:valueComparisonOp"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.valueExpr = Fleur.Xlength++] = [1, 0, "xqx:valueExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.varDecl = Fleur.Xlength++] = [1, 0, "xqx:varDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.varName = Fleur.Xlength++] = [1, 0, "xqx:varName"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.varRef = Fleur.Xlength++] = [1, 0, "xqx:varRef"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.varValue = Fleur.Xlength++] = [1, 0, "xqx:varValue"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.variableBinding = Fleur.Xlength++] = [1, 0, "xqx:variableBinding"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.version = Fleur.Xlength++] = [1, 0, "xqx:version"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.versionDecl = Fleur.Xlength++] = [1, 0, "xqx:versionDecl"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.voidSequenceType = Fleur.Xlength++] = [1, 0, "xqx:voidSequenceType"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.whereClause = Fleur.Xlength++] = [1, 0, "xqx:whereClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.winEndExpr = Fleur.Xlength++] = [1, 0, "xqx:winEndExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.winStartExpr = Fleur.Xlength++] = [1, 0, "xqx:winStartExpr"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.windowClause = Fleur.Xlength++] = [1, 0, "xqx:windowClause"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.windowEndCondition = Fleur.Xlength++] = [1, 0, "xqx:windowEndCondition"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.windowStartCondition = Fleur.Xlength++] = [1, 0, "xqx:windowStartCondition"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.windowVars = Fleur.Xlength++] = [1, 0, "xqx:windowVars"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.xpathAxis = Fleur.Xlength++] = [1, 0, "xqx:xpathAxis"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.URI = Fleur.Xlength++] = [2, 0, "xqx:URI"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.default = Fleur.Xlength++] = [2, 0, "xqx:default"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.nondeterministic = Fleur.Xlength++] = [2, 0, "xqx:nondeterministic"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.onlyEnd = Fleur.Xlength++] = [2, 0, "xqx:onlyEnd"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.prefix = Fleur.Xlength++] = [2, 0, "xqx:prefix"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.private = Fleur.Xlength++] = [2, 0, "xqx:private"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.xqx = Fleur.Xlength++] = [2, 1, "xmlns:xqx"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.xsi = Fleur.Xlength++] = [2, 1, "xmlns:xsi"];
+Fleur.XQueryXNames[1][Fleur.XQueryX.schemaLocation = Fleur.Xlength++] = [2, 2, "xsi:schemaLocation"];
+
+Fleur.toJSNumber = function(ctx) {
+	if (ctx._result.nodeType === Fleur.Node.TEXT_NODE) {
+		if (ctx._result.schemaTypeInfo === Fleur.Type_integer) {
+			return [0, parseInt(ctx._result.data, 10)];
+		} else if (ctx._result.schemaTypeInfo === Fleur.Type_decimal) {
+			return [1, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo === Fleur.Type_float) {
+			return [2, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo === Fleur.Type_double) {
+			return [3, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+			return [0, parseInt(ctx._result.data, 10)];
+		} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "decimal", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+			return [1, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "float", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+			return [2, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "double", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+			return [3, parseFloat(ctx._result.data)];
+		} else if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
+			return [-1];
+		}
+		ctx._result.schemaTypeInfo = Fleur.Type_error;
+		ctx._result.data = "XPTY0004";
+		return [-1];
+	} else if (ctx._result.nodeType === Fleur.Node.SEQUENCE_NODE) {
+		ctx._result = new Fleur.Text();
+		ctx._result.schemaTypeInfo = Fleur.Type_error;
+		ctx._result.data = "XPST0005";
+		return [-1];
+	}
+	ctx._result = new Fleur.Text();
+	ctx._result.schemaTypeInfo = Fleur.Type_error;
+	ctx._result.data = "XPTY0004";
+	return [-1];
+}
+Fleur.toJSBoolean = function(node) {
+	var value;
+	if (node.nodeType === Fleur.Node.SEQUENCE_NODE) {
+		return node.childNodes.length !== 0;
+	} else if (node.schemaTypeInfo === Fleur.Type_boolean) {
+		return node.data === "true";
+	} else if (node.schemaTypeInfo === Fleur.Type_string || node.schemaTypeInfo === Fleur.Type_anyURI || node.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		return node.data.length !== 0;
+	} else if (node.schemaTypeInfo === Fleur.Type_integer) {
+		value = parseInt(node.data, 10);
+		return value !== NaN && value !== 0;
+	} else if (node.schemaTypeInfo === Fleur.Type_decimal || node.schemaTypeInfo === Fleur.Type_float || node.schemaTypeInfo === Fleur.Type_double) {
+		value = parseFloat(node.data);
+		return value !== NaN && value !== 0;
+	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "boolean", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		return node.data === "true";
+	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "string", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "anyURI", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "untypedAtomic", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		return node.data.length !== 0;
+	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		value = parseInt(node.data, 10);
+		return value !== NaN && value !== 0;
+	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "decimal", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "float", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "double", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		value = parseFloat(node.data);
+		return value !== NaN && value !== 0;
+	}
+	return false;
+}
+Fleur.XQueryEngine = [];
+Fleur.XQueryEngine[Fleur.XQueryX.NCName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.QName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.URIExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.Wildcard] = function(ctx, children) {
+	if (children[0][0] === Fleur.XQueryX.star && children[1][0] === Fleur.XQueryX.NCName) {
+		if (ctx._stepctx.curr.localName !== children[1][1][0]) {
+			if (ctx._stepctx.curr.nodeType === Fleur.Node.ATTRIBUTE_NODE) {
+				ctx._stepctx.curr = ctx._stepctx.curr.ownerElement.getAttributeNode(children[1][1][0]);
+				ctx._stepctx.continue = null;
+				return;
+			}
+			ctx._stepctx.ignore = true;
+			return;
+		}
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.addOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx);
+	if (op1[0] < 0) {
+		return;
+	}
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx);
+	if (op2[0] < 0) {
+		return;
+	}
+	ctx._result.data = "" + (op1[1] + op2[1]);
+	ctx._result.schemaTypeInfo = Fleur.numericTypes[Math.max(op1[0], op2[0])];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.allowingEmpty] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.andOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSBoolean(ctx._result);
+	if (!op1) {
+		ctx._result.data = "false";
+		ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	} else {
+		Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+		op2 = Fleur.toJSBoolean(ctx._result);
+		ctx._result.data = "" + op2[1];
+		ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.annotation] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.annotationName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.anyElementTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.anyFunctionTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.anyItemType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.anyKindTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.argExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.argumentPlaceholder] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.arguments] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.arithmeticOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.atomicType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeList] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.ATTRIBUTE_NODE) {
+		ctx._stepctx.ignore = true;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeValue] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.attributeValueExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.baseUriDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.bindingSequence] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.boundarySpaceDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.castExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.castableExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.catchClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.catchErrorList] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.catchExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.collation] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.commentTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.COMMENT_NODE) {
+		ctx._stepctx.ignore = true;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.comparisonOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedAttributeConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedCommentConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedDocumentConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedElementConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedNamespaceConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedPIConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.computedTextConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.constantExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.constructionDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.constructorFunctionExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.contentExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.contextItemDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.contextItemExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.copyNamespacesDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.countClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.currentItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalConstantExpr] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	ctx._result.appendData(children[0][1][0]);
+	ctx._result.schemaTypeInfo = Fleur.Type_decimal;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalFormatDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalFormatName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalFormatParam] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalFormatParamName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.decimalFormatParamValue] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.defaultCollationDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.defaultElementNamespace] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.defaultNamespaceCategory] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.defaultNamespaceDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.divOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx._result);
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx._result);
+	ctx._result.data = "" + (op1[1] / op2[1]);
+	ctx._result.schemaTypeInfo = op1[0] === 0 && op2[0] === 0 ? Fleur.Type_decimal : Fleur.numericTypes[Math.max(op1[0], op2[0])];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.documentTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.DOCUMENT_NODE) {
+		ctx._stepctx.ignore = true;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.doubleConstantExpr] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	ctx._result.appendData(children[0][1][0]);
+	ctx._result.schemaTypeInfo = Fleur.Type_double;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.dynamicFunctionInvocationExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.elementConstructor] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.elementContent] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.elementName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.elementTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.ELEMENT_NODE) {
+		ctx._stepctx.ignore = true;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.elseClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.emptyOrderingDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.emptyOrderingMode] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.encoding] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.endExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.eqOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.equalOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.exceptOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.expr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.extensionExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.external] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.externalDefinition] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.filterExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.firstOperand] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.flworExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.forClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.forClauseItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.forExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.forLetClauseItemExtensions] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionBody] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionCallExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.geOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.generalComparisonOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.greaterThanOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.greaterThanOrEqualOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.groupByClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.groupVarInitialize] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.groupingSpec] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.gtOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.idivOp] = function(ctx, children) {
+	var op1, op2, divres;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx._result);
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx._result);
+	divres = op1[1] / op2[1]
+	ctx._result.data = "" + (Math.floor(divres) + (divres >= 0 ? 0 : 1));
+	ctx._result.schemaTypeInfo = Fleur.Type_integer;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.ifClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.ifThenElseExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.inheritMode] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.inlineFunctionExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.instanceOfExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.integerConstantExpr] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	ctx._result.appendData(children[0][1][0]);
+	ctx._result.schemaTypeInfo = Fleur.Type_integer;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.intersectOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.isOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.itemType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.kindTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.leOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.lessThanOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.lessThanOrEqualOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.letClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.letClauseItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.letExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.libraryModule] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.logicalOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.ltOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.mainModule] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.modOp] = function(ctx, children) {
+	var op1, op2, divres;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx._result);
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx._result);
+	divres = op1[1] / op2[1]
+	ctx._result.data = "" + (op1[1] - (Math.floor(divres) + (divres >= 0 ? 0 : 1)) * op[2]);
+	ctx._result.schemaTypeInfo = Fleur.numericTypes[Math.max(op1[0], op2[0])];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.module] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.moduleDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.moduleImport] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.multiplyOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx._result);
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx._result);
+	ctx._result.data = "" + (op1[1] * op2[1]);
+	ctx._result.schemaTypeInfo = Fleur.numericTypes[Math.max(op1[0], op2[0])];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.name] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nameTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.localName !== children[0]) {
+		if (ctx._stepctx.curr.nodeType === Fleur.Node.ATTRIBUTE_NODE) {
+			ctx._stepctx.curr = ctx._stepctx.curr.ownerElement.getAttributeNode(children[0]);
+			ctx._stepctx.continue = null;
+			return;
+		}
+		ctx._stepctx.ignore = true;
+		return;
+	}
+	var nsURI;
+	if (children.length === 1) {
+		nsURI = "";
+	} else {
+		nsURI = children[1][1][0];
+	}
+	if (ctx._stepctx.curr.namespaceURI !== nsURI) {
+		if (ctx._stepctx.curr.nodeType === Fleur.Node.ATTRIBUTE_NODE) {
+			ctx._stepctx.curr = ctx._stepctx.curr.ownerElement.getAttributeNode(children[0]);
+			ctx._stepctx.continue = null;
+			return;
+		}
+		ctx._stepctx.ignore = true;
+		return;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.namedFunctionRef] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.namespaceDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.namespaceDeclaration] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.namespacePrefix] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.namespaceTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.neOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nextItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nillable] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nodeAfterOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nodeBeforeOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nodeComparisonOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.notEqualOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.occurrenceIndicator] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.operand] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.operatorExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.optionContents] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.optionDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.optionName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.optional] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSBoolean(ctx._result);
+	if (op1) {
+		ctx._result.data = "true";
+		ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	} else {
+		Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+		op2 = Fleur.toJSBoolean(ctx._result);
+		ctx._result.data = "" + op2[1];
+		ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.orderByClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderByExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderBySpec] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderComparisonOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderModifier] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderedExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderingKind] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.orderingModeDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.param] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.paramList] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.paramTypeList] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.parenthesizedItemType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.pathExpr] = function(ctx, children) {
+	var i, l, curr, prevstep, result;
+	ctx._result = [];
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	if (children.length > 1) {
+		curr = ctx._curr;
+		l = ctx._result.length;
+		i = 0;
+		prevstep = ctx._result.slice();
+		result = ctx._result = [];
+		while (i < l) {
+			ctx._curr = prevstep[i];
+			Fleur.XQueryEngine[Fleur.XQueryX.pathExpr](ctx, children.slice(1));
+			result = result.concat(ctx._result);
+			i++;
+		}
+		ctx._result = result;
+		ctx._curr = curr;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.piTarget] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.piTargetExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.piTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.PROCESSING_INSTRUCTION_NODE) {
+		ctx._stepctx.ignore = true;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.piValueExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.positionalVariableBinding] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.pragma] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.pragmaContents] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.pragmaName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.predicateExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.predicates] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prefix] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prefixExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.preserveMode] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.previousItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prolog] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prologPartOneItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prologPartTwoItem] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.quantifiedExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.quantifiedExprInClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.quantifier] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.queryBody] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.rangeSequenceExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.resultExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.returnClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.rootExpr] = function(ctx, children) {
+	ctx._result = [ctx._curr.ownerDocument || ctx._curr];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.schemaAttributeTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.schemaElementTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.schemaImport] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.secondOperand] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.sequenceExpr] = function(ctx, children) {
+	ctx._result = new Fleur.Sequence();
+	ctx._result.data = "";
+	ctx._result.nodeType = Fleur.Node.SEQUENCE_NODE;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.sequenceType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.sequenceTypeUnion] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.setOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.simpleMapExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.singleType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.slidingWindowClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.sourceExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.stable] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.star] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.startExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.stepExpr] = function(ctx, children) {
+	var i, l;
+	ctx._stepctx = {};
+	do {
+		i = 0;
+		l = children.length;
+		ctx._stepctx.ignore = false;
+		while (i < l) {
+			Fleur.XQueryEngine[children[i][0]](ctx, children[i][1]);
+			if (ctx._stepctx.ignore || !ctx._stepctx.curr) {
+				break;
+			}
+			if (i === l - 1) {
+				ctx._result.push(ctx._stepctx.curr);
+			}
+			i++;
+		}
+	}
+	while (ctx._stepctx.continue);
+};
+Fleur.XQueryEngine[Fleur.XQueryX.stringConcatenateOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.stringConstantExpr] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	ctx._result.appendData(children[0][1][0]);
+	ctx._result.schemaTypeInfo = Fleur.Type_string;
+};
+Fleur.XQueryEngine[Fleur.XQueryX.stringOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.subtractOp] = function(ctx, children) {
+	var op1, op2;
+	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	op1 = Fleur.toJSNumber(ctx._result);
+	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	op2 = Fleur.toJSNumber(ctx._result);
+	ctx._result.data = "" + (op1[1] - op2[1]);
+	ctx._result.schemaTypeInfo = Fleur.numericTypes[Math.max(op1[0], op2[0])];
+};
+Fleur.XQueryEngine[Fleur.XQueryX.switchCaseExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.switchExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.switchExprCaseClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.switchExprDefaultClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.tagName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.tagNameExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.targetLocation] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.targetNamespace] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.textTest] = function(ctx, children) {
+	if (ctx._stepctx.curr.nodeType !== Fleur.Node.TEXT_NODE) {
+		ctx._stepctx.curr = null;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.thenClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.treatExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.tryCatchExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.tryClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.tumblingWindowClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typeDeclaration] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typeName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typedFunctionTest] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typedVariableBinding] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typeswitchExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typeswitchExprCaseClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.typeswitchExprDefaultClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.unaryMinusOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.unaryPlusOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.unionOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.unorderedExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.uri] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.validateExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.validationMode] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.value] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.valueComparisonOp] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.valueExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.varDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.varName] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.varRef] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.varValue] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.variableBinding] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.version] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.versionDecl] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.voidSequenceType] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.whereClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.winEndExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.winStartExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.windowClause] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.windowEndCondition] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.windowStartCondition] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.windowVars] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.xpathAxis] = function(ctx, children) {
+	var ancestor;
+	if (ctx._stepctx.domAxis) {
+		ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr[ctx._stepctx.domAxis];
+		return;
+	}
+	if (!ctx._stepctx.curr) {
+		ctx._stepctx.xpathAxis = children[0];
+		ctx._stepctx.curr = ctx._curr;
+		switch (ctx._stepctx.xpathAxis) {
+			case "ancestor-or-self":
+				ctx._stepctx.xpathAxis = "ancestor";
+				ctx._stepctx.continue = ctx._stepctx.curr;
+				return;
+			case "ancestor":
+				ctx._stepctx.domAxis = "parentNode";
+				ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.parentNode | ctx._stepctx.curr.ownerElement;
+				return;
+			case "attribute":
+				ctx._stepctx.iattr = 0;
+				ctx._stepctx.curr = ctx._stepctx.curr.attributes[ctx._stepctx.iattr++];
+				ctx._stepctx.continue = ctx._stepctx.curr && ctx._stepctx.iattr < ctx._stepctx.curr.ownerElement.attributes.length ? ctx._stepctx.curr : null;
+				return;
+			case "child":
+				ctx._stepctx.domAxis = "nextSibling";
+				ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.childNodes && ctx._stepctx.curr.childNodes.length > 0 ? ctx._stepctx.curr.childNodes[0] : null;
+				return;
+			case "descendant":
+				ctx._stepctx.down = true;
+				break;
+			case "descendant-or-self":
+				ctx._stepctx.xpathAxis = "descendant";
+				ctx._stepctx.continue = ctx._stepctx.curr;
+				return;
+			case "following":
+				ctx._stepctx.down = false;
+				break;
+			case "following-sibling":
+				ctx._stepctx.domAxis = "nextSibling";
+				ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.nextSibling;
+				return;
+			case "parent":
+				ctx._stepctx.curr = ctx._curr.parentNode | ctx._stepctx.curr.ownerElement;
+				return;
+			case "preceding":
+				ctx._stepctx.down = false;
+				return;
+			case "preceding-sibling":
+				ctx._stepctx.domAxis = "previousSibling";
+				ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.previousSibling;
+				return;
+			case "self":
+				return;
+		}
+	}
+	switch (ctx._stepctx.xpathAxis) {
+		case "ancestor":
+			ctx._stepctx.domAxis = "parentNode";
+			ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.parentNode | ctx._stepctx.curr.ownerElement;
+			return;
+		case "attribute":
+			ctx._stepctx.curr = ctx._stepctx.curr.ownerElement.attributes[ctx._stepctx.iattr++];
+			ctx._stepctx.continue = ctx._stepctx.curr && ctx._stepctx.iattr < ctx._stepctx.curr.ownerElement.attributes.length ? ctx._stepctx.curr : null;
+			return;
+		case "descendant":
+			do {
+				if (ctx._stepctx.down && ctx._stepctx.curr.childNodes && ctx._stepctx.curr.childNodes.length > 0) {
+					ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.childNodes[0];
+					return;
+				} else if (ctx._stepctx.curr.nextSibling) {
+					ctx._stepctx.down = true;
+					ctx._stepctx.continue = ctx._stepctx.curr.nextSibling;
+					return;
+				} else {
+					ctx._stepctx.curr = ctx._stepctx.curr.parentNode;
+					ctx._stepctx.down = false;
+					if (ctx._stepctx.curr === ctx._curr) {
+						ctx._stepctx.continue = ctx._stepctx.curr = null;
+						return;
+					}
+				}
+			} while (1);
+			return;
+		case "following":
+			do {
+				if (ctx._stepctx.down && ctx._stepctx.curr.childNodes && ctx._stepctx.curr.childNodes.length > 0) {
+					ctx._stepctx.continue = ctx._stepctx.curr = ctx._stepctx.curr.childNodes[0];
+					return;
+				} else if (ctx._stepctx.curr.nextSibling) {
+					ctx._stepctx.down = true;
+					ctx._stepctx.continue = ctx._stepctx.curr.nextSibling;
+					return;
+				} else {
+					ctx._stepctx.curr = ctx._stepctx.curr.parentNode;
+					ctx._stepctx.down = false;
+					if (!ctx._stepctx.curr) {
+						ctx._stepctx.continue = ctx._stepctx.curr = null;
+						return;
+					}
+				}
+			} while (1);
+			return;
+		case "namespace":
+			return;
+		case "preceding":
+			do {
+				if (ctx._stepctx.down) {
+					while (ctx._stepctx.curr.childNodes && ctx._stepctx.curr.childNodes.length > 0) {
+						ctx._stepctx.curr = ctx._stepctx.curr.childNodes[ctx._stepctx.curr.childNodes.length - 1];
+					}
+					return;
+				} else if (ctx._stepctx.curr.previousSibling) {
+					ctx._stepctx.down = true;
+					ctx._stepctx.continue = ctx._stepctx.curr.nextSibling;
+					return;
+				} else {
+					ctx._stepctx.curr = ctx._stepctx.curr.parentNode;
+					ctx._stepctx.down = false;
+					if (ctx._stepctx.curr) {
+						ancestor = ctx._curr.parentNode;
+						while (ancestor && ancestor !== ctx._stepctx.curr) {
+							ancestor = ancestor.parentNode;
+						}
+					}
+					if (!ctx._stepctx.curr || !ancestor) {
+						ctx._stepctx.continue = ctx._stepctx.curr;
+						return;
+					}
+				}
+			} while (1);
+			return;
+	}
+};
+Fleur.XQueryEngine[Fleur.XQueryX.URI] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.default] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.nondeterministic] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.onlyEnd] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.prefix] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.private] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.xqx] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.xsi] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.schemaLocation] = function(ctx, children) {};
+
+Fleur.XsltX = {};
+Fleur.XsltX._pattern2xpath = function(xqueryx) {
+	var i, step, newaxis, t;
+	switch (xqueryx[0]) {
+		case Fleur.XQueryX.pathExpr:
+			i = xqueryx[1].length - 1;
+			newaxis = "self";
+			t = [];
+			while (i >= 0) {
+				step = xqueryx[1][i];
+				switch (step[0]) {
+					case Fleur.XQueryX.rootExpr:
+						t.push([Fleur.XQueryX.stepExpr, [[Fleur.XQueryX.xpathAxis, [newaxis]], [Fleur.XQueryX.documentTest, []]]]);
+						break;
+					case Fleur.XQueryX.stepExpr:
+						if (step[1][0][0] === Fleur.XQueryX.xpathAxis &&
+						    step[1][0][1][0] === "descendant-or-self" &&
+							step[1][1][0] === Fleur.XQueryX.anyKindTest) {
+							newaxis = "ancestor";
+						} else {
+							t.push([Fleur.XQueryX.stepExpr, [[Fleur.XQueryX.xpathAxis, [newaxis]], step[1][1]]]);
+							newaxis = "parent";
+						}
+						break;
+				}
+				i--;
+			}
+			xqueryx[1] = t;
+			break;
+		case Fleur.XQueryX.unionOp:
+			Fleur.XsltX._pattern2xpath(xqueryx[1][0][1][0]);
+			Fleur.XsltX._pattern2xpath(xqueryx[1][1][1][0]);
+			break;
+	}
+};
+Fleur.XsltXNames = [["http://www.w3.org/2005/XQueryX", "http://www.w3.org/2000/xmlns/", "http://www.w3.org/2001/XMLSchema-instance", "http://www.w3.org/1999/XSL/Transform", "http://www.w3.org/1999/XSL/Transform/expression", "http://www.w3.org/1999/XSL/Transform/avt", "http://www.w3.org/1999/XSL/Transform/pattern"], Fleur.XQueryXNames[1]];
+Fleur.XsltXNames[1][Fleur.XsltX.accept = Fleur.Xlength++] = [1, 3, "xsl:accept"];
+Fleur.XsltXNames[1][Fleur.XsltX.accumulator = Fleur.Xlength++] = [1, 3, "xsl:accumulator"];
+Fleur.XsltXNames[1][Fleur.XsltX.assert = Fleur.Xlength++] = [1, 3, "xsl:assert"];
+Fleur.XsltXNames[1][Fleur.XsltX.attribute = Fleur.Xlength++] = [1, 3, "xsl:attribute"];
+Fleur.XsltXNames[1][Fleur.XsltX.break = Fleur.Xlength++] = [1, 3, "xsl:break"];
+Fleur.XsltXNames[1][Fleur.XsltX.catch = Fleur.Xlength++] = [1, 3, "xsl:catch"];
+Fleur.XsltXNames[1][Fleur.XsltX.choose = Fleur.Xlength++] = [1, 3, "xsl:choose"];
+Fleur.XsltXNames[1][Fleur.XsltX.comment = Fleur.Xlength++] = [1, 3, "xsl:comment"];
+Fleur.XsltXNames[1][Fleur.XsltX.copy = Fleur.Xlength++] = [1, 3, "xsl:copy"];
+Fleur.XsltXNames[1][Fleur.XsltX.document = Fleur.Xlength++] = [1, 3, "xsl:document"];
+Fleur.XsltXNames[1][Fleur.XsltX.element = Fleur.Xlength++] = [1, 3, "xsl:element"];
+Fleur.XsltXNames[1][Fleur.XsltX.evaluate = Fleur.Xlength++] = [1, 3, "xsl:evaluate"];
+Fleur.XsltXNames[1][Fleur.XsltX.expose = Fleur.Xlength++] = [1, 3, "xsl:expose"];
+Fleur.XsltXNames[1][Fleur.XsltX.fallback = Fleur.Xlength++] = [1, 3, "xsl:fallback"];
+Fleur.XsltXNames[1][Fleur.XsltX.fork = Fleur.Xlength++] = [1, 3, "xsl:fork"];
+Fleur.XsltXNames[1][Fleur.XsltX.function = Fleur.Xlength++] = [1, 3, "xsl:function"];
+Fleur.XsltXNames[1][Fleur.XsltX.if = Fleur.Xlength++] = [1, 3, "xsl:if"];
+Fleur.XsltXNames[1][Fleur.XsltX.import = Fleur.Xlength++] = [1, 3, "xsl:import"];
+Fleur.XsltXNames[1][Fleur.XsltX.include = Fleur.Xlength++] = [1, 3, "xsl:include"];
+Fleur.XsltXNames[1][Fleur.XsltX.iterate = Fleur.Xlength++] = [1, 3, "xsl:iterate"];
+Fleur.XsltXNames[1][Fleur.XsltX.key = Fleur.Xlength++] = [1, 3, "xsl:key"];
+Fleur.XsltXNames[1][Fleur.XsltX.map = Fleur.Xlength++] = [1, 3, "xsl:map"];
+Fleur.XsltXNames[1][Fleur.XsltX.merge = Fleur.Xlength++] = [1, 3, "xsl:merge"];
+Fleur.XsltXNames[1][Fleur.XsltX.message = Fleur.Xlength++] = [1, 3, "xsl:message"];
+Fleur.XsltXNames[1][Fleur.XsltX.mode = Fleur.Xlength++] = [1, 3, "xsl:mode"];
+Fleur.XsltXNames[1][Fleur.XsltX.namespace = Fleur.Xlength++] = [1, 3, "xsl:namespace"];
+Fleur.XsltXNames[1][Fleur.XsltX.number = Fleur.Xlength++] = [1, 3, "xsl:number"];
+Fleur.XsltXNames[1][Fleur.XsltX.otherwise = Fleur.Xlength++] = [1, 3, "xsl:otherwise"];
+Fleur.XsltXNames[1][Fleur.XsltX.output = Fleur.Xlength++] = [1, 3, "xsl:output"];
+Fleur.XsltXNames[1][Fleur.XsltX.override = Fleur.Xlength++] = [1, 3, "xsl:override"];
+Fleur.XsltXNames[1][Fleur.XsltX.package = Fleur.Xlength++] = [1, 3, "xsl:package"];
+Fleur.XsltXNames[1][Fleur.XsltX.param = Fleur.Xlength++] = [1, 3, "xsl:param"];
+Fleur.XsltXNames[1][Fleur.XsltX.sequence = Fleur.Xlength++] = [1, 3, "xsl:sequence"];
+Fleur.XsltXNames[1][Fleur.XsltX.sort = Fleur.Xlength++] = [1, 3, "xsl:sort"];
+Fleur.XsltXNames[1][Fleur.XsltX.stream = Fleur.Xlength++] = [1, 3, "xsl:stream"];
+Fleur.XsltX.transform = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltX.stylesheet = Fleur.Xlength++] = [1, 3, "xsl:stylesheet"];
+Fleur.XsltXNames[1][Fleur.XsltX.template = Fleur.Xlength++] = [1, 3, "xsl:template"];
+Fleur.XsltXNames[1][Fleur.XsltX.text = Fleur.Xlength++] = [1, 3, "xsl:text"];
+Fleur.XsltXNames[1][Fleur.XsltX.try = Fleur.Xlength++] = [1, 3, "xsl:try"];
+Fleur.XsltXNames[1][Fleur.XsltX.variable = Fleur.Xlength++] = [1, 3, "xsl:variable"];
+Fleur.XsltXNames[1][Fleur.XsltX.when = Fleur.Xlength++] = [1, 3, "xsl:when"];
+Fleur.XsltXNames[1][Fleur.XsltX["accumulator-rule"] = Fleur.Xlength++] = [1, 3, "xsl:accumulator-rule"];
+Fleur.XsltXNames[1][Fleur.XsltX["analyze-string"] = Fleur.Xlength++] = [1, 3, "xsl:analyze-string"];
+Fleur.XsltXNames[1][Fleur.XsltX["apply-imports"] = Fleur.Xlength++] = [1, 3, "xsl:apply-imports"];
+Fleur.XsltXNames[1][Fleur.XsltX["apply-templates"] = Fleur.Xlength++] = [1, 3, "xsl:apply-templates"];
+Fleur.XsltXNames[1][Fleur.XsltX["attribute-set"] = Fleur.Xlength++] = [1, 3, "xsl:attribute-set"];
+Fleur.XsltXNames[1][Fleur.XsltX["call-template"] = Fleur.Xlength++] = [1, 3, "xsl:call-template"];
+Fleur.XsltXNames[1][Fleur.XsltX["character-map"] = Fleur.Xlength++] = [1, 3, "xsl:character-map"];
+Fleur.XsltXNames[1][Fleur.XsltX["context-item"] = Fleur.Xlength++] = [1, 3, "xsl:context-item"];
+Fleur.XsltXNames[1][Fleur.XsltX["copy-of"] = Fleur.Xlength++] = [1, 3, "xsl:copy-of"];
+Fleur.XsltXNames[1][Fleur.XsltX["decimal-format"] = Fleur.Xlength++] = [1, 3, "xsl:decimal-format"];
+Fleur.XsltXNames[1][Fleur.XsltX["for-each"] = Fleur.Xlength++] = [1, 3, "xsl:for-each"];
+Fleur.XsltXNames[1][Fleur.XsltX["for-each-group"] = Fleur.Xlength++] = [1, 3, "xsl:for-each-group"];
+Fleur.XsltXNames[1][Fleur.XsltX["import-schema"] = Fleur.Xlength++] = [1, 3, "xsl:import-schema"];
+Fleur.XsltXNames[1][Fleur.XsltX["map-entry"] = Fleur.Xlength++] = [1, 3, "xsl:map-entry"];
+Fleur.XsltXNames[1][Fleur.XsltX["matching-substring"] = Fleur.Xlength++] = [1, 3, "xsl:matching-substring"];
+Fleur.XsltXNames[1][Fleur.XsltX["merge-action"] = Fleur.Xlength++] = [1, 3, "xsl:merge-action"];
+Fleur.XsltXNames[1][Fleur.XsltX["merge-key"] = Fleur.Xlength++] = [1, 3, "xsl:merge-key"];
+Fleur.XsltXNames[1][Fleur.XsltX["merge-source"] = Fleur.Xlength++] = [1, 3, "xsl:merge-source"];
+Fleur.XsltXNames[1][Fleur.XsltX["namespace-alias"] = Fleur.Xlength++] = [1, 3, "xsl:namespace-alias"];
+Fleur.XsltXNames[1][Fleur.XsltX["next-iteration"] = Fleur.Xlength++] = [1, 3, "xsl:next-iteration"];
+Fleur.XsltXNames[1][Fleur.XsltX["next-match"] = Fleur.Xlength++] = [1, 3, "xsl:next-match"];
+Fleur.XsltXNames[1][Fleur.XsltX["non-matching-substring"] = Fleur.Xlength++] = [1, 3, "xsl:non-matching-substring"];
+Fleur.XsltXNames[1][Fleur.XsltX["on-completion"] = Fleur.Xlength++] = [1, 3, "xsl:on-completion"];
+Fleur.XsltXNames[1][Fleur.XsltX["output-character"] = Fleur.Xlength++] = [1, 3, "xsl:output-character"];
+Fleur.XsltXNames[1][Fleur.XsltX["perform-sort"] = Fleur.Xlength++] = [1, 3, "xsl:perform-sort"];
+Fleur.XsltXNames[1][Fleur.XsltX["post-descent"] = Fleur.Xlength++] = [1, 3, "xsl:post-descent"];
+Fleur.XsltXNames[1][Fleur.XsltX["preserve-space"] = Fleur.Xlength++] = [1, 3, "xsl:preserve-space"];
+Fleur.XsltXNames[1][Fleur.XsltX["processing-instruction"] = Fleur.Xlength++] = [1, 3, "xsl:processing-instruction"];
+Fleur.XsltXNames[1][Fleur.XsltX["result-document"] = Fleur.Xlength++] = [1, 3, "xsl:result-document"];
+Fleur.XsltXNames[1][Fleur.XsltX["strip-space"] = Fleur.Xlength++] = [1, 3, "xsl:strip-space"];
+Fleur.XsltXNames[1][Fleur.XsltX["use-package"] = Fleur.Xlength++] = [1, 3, "xsl:use-package"];
+Fleur.XsltXNames[1][Fleur.XsltX["value-of"] = Fleur.Xlength++] = [1, 3, "xsl:value-of"];
+Fleur.XsltXNames[1][Fleur.XsltX["with-param"] = Fleur.Xlength++] = [1, 3, "xsl:with-param"];
+
+Fleur.XsltXattr = {};
+Fleur.XsltXNames[1][Fleur.XsltXattr["NaN decimal-format"] = Fleur.Xlength++] = [2, 3, "NaN"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["applies-to accumulator"] = Fleur.Xlength++] = [1, 6, "patternx:applies-to"];
+Fleur.XsltXattr["as accumulator"] = Fleur.Xlength;
+Fleur.XsltXattr["as context-item"] = Fleur.Xlength;
+Fleur.XsltXattr["as evaluate"] = Fleur.Xlength;
+Fleur.XsltXattr["as function"] = Fleur.Xlength;
+Fleur.XsltXattr["as param"] = Fleur.Xlength;
+Fleur.XsltXattr["as template"] = Fleur.Xlength;
+Fleur.XsltXattr["as variable"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["as with-param"] = Fleur.Xlength++] = [1, 4, "xsltx:as"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["base-uri evaluate"] = Fleur.Xlength++] = [1, 5, "avtx:base-uri"];
+Fleur.XsltXattr["bind-group for-each-group"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["bind-group merge"] = Fleur.Xlength++] = [2, 3, "bind-group"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["bind-grouping-key for-each-group"] = Fleur.Xlength++] = [2, 3, "bind-grouping-key"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["bind-key merge"] = Fleur.Xlength++] = [2, 3, "bind-key"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["bind-source merge-source"] = Fleur.Xlength++] = [2, 3, "bind-source"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["byte-order-mark output"] = Fleur.Xlength++] = [2, 3, "byte-order-mark"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["byte-order-mark result-document"] = Fleur.Xlength++] = [1, 5, "avtx:byte-order-mark"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["cache function"] = Fleur.Xlength++] = [2, 3, "cache"];
+Fleur.XsltXattr["case-order merge-key"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["case-order sort"] = Fleur.Xlength++] = [1, 5, "avtx:case-order"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["cdata-section-elements output"] = Fleur.Xlength++] = [2, 3, "cdata-section-elements"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["cdata-section-elements result-document"] = Fleur.Xlength++] = [1, 5, "avtx:cdata-section-elements"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["character output-character"] = Fleur.Xlength++] = [2, 3, "character"];
+Fleur.XsltXattr["collation key"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["collation merge-key"] = Fleur.Xlength++] = [2, 3, "collation"];
+Fleur.XsltXattr["collation for-each-group"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["collation sort"] = Fleur.Xlength++] = [1, 5, "avtx:collation"];
+Fleur.XsltXattr["component accept"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["component expose"] = Fleur.Xlength++] = [2, 3, "component"];
+Fleur.XsltXattr["composite for-each-group"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["composite key"] = Fleur.Xlength++] = [2, 3, "composite"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["context-item evaluate"] = Fleur.Xlength++] = [1, 4, "xsltx:context-item"];
+Fleur.XsltXattr["copy-namespaces copy"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["copy-namespaces copy-of"] = Fleur.Xlength++] = [2, 3, "copy-namespaces"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["count number"] = Fleur.Xlength++] = [1, 6, "patternx:count"];
+Fleur.XsltXattr["data-type merge-key"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["data-type sort"] = Fleur.Xlength++] = [1, 5, "avtx:data-type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["decimal-separator decimal-format"] = Fleur.Xlength++] = [2, 3, "decimal-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["default-collation *"] = Fleur.Xlength++] = [2, 3, "default-collation"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["default-mode *"] = Fleur.Xlength++] = [2, 3, "default-mode"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["default-validation *"] = Fleur.Xlength++] = [2, 3, "default-validation"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["digit decimal-format"] = Fleur.Xlength++] = [2, 3, "digit"];
+Fleur.XsltXattr["disable-output-escaping text"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["disable-output-escaping value-of"] = Fleur.Xlength++] = [2, 3, "disable-output-escaping"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["doctype-public output"] = Fleur.Xlength++] = [2, 3, "doctype-public"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["doctype-public result-document"] = Fleur.Xlength++] = [1, 5, "avtx:doctype-public"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["doctype-system output"] = Fleur.Xlength++] = [2, 3, "doctype-system"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["doctype-system result-document"] = Fleur.Xlength++] = [1, 5, "avtx:doctype-system"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["elements strip-space"] = Fleur.Xlength++] = [1, 4, "xsltx:elements"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["encoding output"] = Fleur.Xlength++] = [2, 3, "encoding"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["encoding result-document"] = Fleur.Xlength++] = [1, 5, "avtx:encoding"];
+Fleur.XsltXattr["error-code assert"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["error-code message"] = Fleur.Xlength++] = [1, 5, "avtx:error-code"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["errors catch"] = Fleur.Xlength++] = [2, 3, "errors"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["escape-uri-attributes output"] = Fleur.Xlength++] = [2, 3, "escape-uri-attributes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["escape-uri-attributes result-document"] = Fleur.Xlength++] = [1, 5, "avtx:escape-uri-attributes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["exclude-result-prefixes *"] = Fleur.Xlength++] = [2, 3, "exclude-result-prefixes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["expand-text *"] = Fleur.Xlength++] = [2, 3, "expand-text"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["extension-element-prefixes *"] = Fleur.Xlength++] = [2, 3, "extension-element-prefixes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["flags analyze-string"] = Fleur.Xlength++] = [1, 5, "avtx:flags"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["for-each merge-source"] = Fleur.Xlength++] = [1, 4, "xsltx:for-each"];
+Fleur.XsltXattr["format number"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["format result-document"] = Fleur.Xlength++] = [1, 5, "avtx:format"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["from number"] = Fleur.Xlength++] = [1, 6, "patternx:from"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["group-adjacent for-each-group"] = Fleur.Xlength++] = [1, 4, "xsltx:group-adjacent"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["group-by for-each-group"] = Fleur.Xlength++] = [1, 4, "xsltx:group-by"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["group-ending-with for-each-group"] = Fleur.Xlength++] = [1, 6, "patternx:group-ending-with"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["group-starting-with for-each-group"] = Fleur.Xlength++] = [1, 6, "patternx:group-starting-with"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["grouping-separator decimal-format"] = Fleur.Xlength++] = [2, 3, "grouping-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["grouping-separator number"] = Fleur.Xlength++] = [1, 5, "avtx:grouping-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["grouping-size number"] = Fleur.Xlength++] = [1, 5, "avtx:grouping-size"];
+Fleur.XsltXattr["href import"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["href include"] = Fleur.Xlength++] = [2, 3, "href"];
+Fleur.XsltXattr["href result-document"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["href stream"] = Fleur.Xlength++] = [1, 5, "avtx:href"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["html-version output"] = Fleur.Xlength++] = [2, 3, "html-version"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["html-version result-document"] = Fleur.Xlength++] = [1, 5, "avtx:html-version"];
+Fleur.XsltXattr["id stylesheet"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["id transform"] = Fleur.Xlength++] = [2, 3, "id"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["identity-sensitive function"] = Fleur.Xlength++] = [2, 3, "identity-sensitive"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["include-content-type output"] = Fleur.Xlength++] = [2, 3, "include-content-type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["include-content-type result-document"] = Fleur.Xlength++] = [1, 5, "avtx:include-content-type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["indent output"] = Fleur.Xlength++] = [2, 3, "indent"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["indent result-document"] = Fleur.Xlength++] = [1, 5, "avtx:indent"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["infinity decimal-format"] = Fleur.Xlength++] = [2, 3, "infinity"];
+Fleur.XsltXattr["inherit-namespaces copy"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["inherit-namespaces element"] = Fleur.Xlength++] = [2, 3, "inherit-namespaces"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["initial-value accumulator"] = Fleur.Xlength++] = [1, 4, "xsltx:initial-value"];
+Fleur.XsltXattr["input-type-annotations package"] = Fleur.Xlength;
+Fleur.XsltXattr["input-type-annotations stylesheet"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["input-type-annotations transform"] = Fleur.Xlength++] = [2, 3, "input-type-annotations"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["item-separator output"] = Fleur.Xlength++] = [2, 3, "item-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["item-separator result-document"] = Fleur.Xlength++] = [1, 5, "avtx:item-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["key map-entry"] = Fleur.Xlength++] = [1, 4, "xsltx:key"];
+Fleur.XsltXattr["lang merge-key"] = Fleur.Xlength;
+Fleur.XsltXattr["lang number"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["lang sort"] = Fleur.Xlength++] = [1, 5, "avtx:lang"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["letter-value number"] = Fleur.Xlength++] = [1, 5, "avtx:letter-value"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["level number"] = Fleur.Xlength++] = [2, 3, "level"];
+Fleur.XsltXattr["match accumulator-rule"] = Fleur.Xlength;
+Fleur.XsltXattr["match key"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["match template"] = Fleur.Xlength++] = [1, 6, "patternx:match"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["media-type output"] = Fleur.Xlength++] = [2, 3, "media-type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["media-type result-document"] = Fleur.Xlength++] = [1, 5, "avtx:media-type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["method output"] = Fleur.Xlength++] = [2, 3, "method"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["method result-document"] = Fleur.Xlength++] = [1, 5, "avtx:method"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["minus-sign decimal-format"] = Fleur.Xlength++] = [2, 3, "minus-sign"];
+Fleur.XsltXattr["mode apply-templates"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["mode template"] = Fleur.Xlength++] = [2, 3, "mode"];
+Fleur.XsltXattr["name accumulator"] = Fleur.Xlength;
+Fleur.XsltXattr["name attribute-set"] = Fleur.Xlength;
+Fleur.XsltXattr["name call-template"] = Fleur.Xlength;
+Fleur.XsltXattr["name character-map"] = Fleur.Xlength;
+Fleur.XsltXattr["name decimal-format"] = Fleur.Xlength;
+Fleur.XsltXattr["name function"] = Fleur.Xlength;
+Fleur.XsltXattr["name key"] = Fleur.Xlength;
+Fleur.XsltXattr["name mode"] = Fleur.Xlength;
+Fleur.XsltXattr["name output"] = Fleur.Xlength;
+Fleur.XsltXattr["name package"] = Fleur.Xlength;
+Fleur.XsltXattr["name param"] = Fleur.Xlength;
+Fleur.XsltXattr["name template"] = Fleur.Xlength;
+Fleur.XsltXattr["name use-package"] = Fleur.Xlength;
+Fleur.XsltXattr["name variable"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["name with-param"] = Fleur.Xlength++] = [2, 3, "name"];
+Fleur.XsltXattr["name attribute"] = Fleur.Xlength;
+Fleur.XsltXattr["name element"] = Fleur.Xlength;
+Fleur.XsltXattr["name namespace"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["name processing-instruction"] = Fleur.Xlength++] = [1, 5, "avtx:name"];
+Fleur.XsltXattr["names accept"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["names expose"] = Fleur.Xlength++] = [2, 3, "names"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["namespace import-schema"] = Fleur.Xlength++] = [2, 3, "namespace"];
+Fleur.XsltXattr["namespace attribute"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["namespace element"] = Fleur.Xlength++] = [1, 5, "avtx:namespace"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["namespace-context evaluate"] = Fleur.Xlength++] = [1, 4, "xsltx:namespace-context"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["new-value accumulator-rule"] = Fleur.Xlength++] = [1, 4, "xsltx:new-value"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["normalization-form output"] = Fleur.Xlength++] = [2, 3, "normalization-form"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["normalization-form result-document"] = Fleur.Xlength++] = [1, 5, "avtx:normalization-form"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["omit-xml-declaration output"] = Fleur.Xlength++] = [2, 3, "omit-xml-declaration"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["omit-xml-declaration result-document"] = Fleur.Xlength++] = [1, 5, "avtx:omit-xml-declaration"];
+Fleur.XsltXattr["on-empty attribute"] = Fleur.Xlength;
+Fleur.XsltXattr["on-empty copy"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["on-empty element"] = Fleur.Xlength++] = [1, 4, "xsltx:on-empty"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["on-multiple-match mode"] = Fleur.Xlength++] = [2, 3, "on-multiple-match"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["on-no-match mode"] = Fleur.Xlength++] = [2, 3, "on-no-match"];
+Fleur.XsltXattr["order merge-key"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["order sort"] = Fleur.Xlength++] = [1, 5, "avtx:order"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["ordinal number"] = Fleur.Xlength++] = [1, 5, "avtx:ordinal"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["output-version result-document"] = Fleur.Xlength++] = [1, 5, "avtx:output-version"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["override function"] = Fleur.Xlength++] = [2, 3, "override"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["override-extension-function function"] = Fleur.Xlength++] = [2, 3, "override-extension-function"];
+Fleur.XsltXattr["package-version package"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["package-version use-package"] = Fleur.Xlength++] = [2, 3, "package-version"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["parameter-document output"] = Fleur.Xlength++] = [2, 3, "parameter-document"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["parameter-document result-document"] = Fleur.Xlength++] = [1, 5, "avtx:parameter-document"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["pattern-separator decimal-format"] = Fleur.Xlength++] = [2, 3, "pattern-separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["per-mille decimal-format"] = Fleur.Xlength++] = [2, 3, "per-mille"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["percent decimal-format"] = Fleur.Xlength++] = [2, 3, "percent"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["phase accumulator-rule"] = Fleur.Xlength++] = [2, 3, "phase"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["priority template"] = Fleur.Xlength++] = [2, 3, "priority"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["regex analyze-string"] = Fleur.Xlength++] = [1, 5, "avtx:regex"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["required param"] = Fleur.Xlength++] = [2, 3, "required"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["result-prefix namespace-alias"] = Fleur.Xlength++] = [2, 3, "result-prefix"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["schema-aware evaluate"] = Fleur.Xlength++] = [1, 5, "avtx:schema-aware"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["schema-location import-schema"] = Fleur.Xlength++] = [2, 3, "schema-location"];
+Fleur.XsltXattr["select analyze-string"] = Fleur.Xlength;
+Fleur.XsltXattr["select apply-templates"] = Fleur.Xlength;
+Fleur.XsltXattr["select assert"] = Fleur.Xlength;
+Fleur.XsltXattr["select attribute"] = Fleur.Xlength;
+Fleur.XsltXattr["select break"] = Fleur.Xlength;
+Fleur.XsltXattr["select catch"] = Fleur.Xlength;
+Fleur.XsltXattr["select comment"] = Fleur.Xlength;
+Fleur.XsltXattr["select copy"] = Fleur.Xlength;
+Fleur.XsltXattr["select copy-of"] = Fleur.Xlength;
+Fleur.XsltXattr["select for-each"] = Fleur.Xlength;
+Fleur.XsltXattr["select for-each-group"] = Fleur.Xlength;
+Fleur.XsltXattr["select iterate"] = Fleur.Xlength;
+Fleur.XsltXattr["select map-entry"] = Fleur.Xlength;
+Fleur.XsltXattr["select merge-key"] = Fleur.Xlength;
+Fleur.XsltXattr["select merge-source"] = Fleur.Xlength;
+Fleur.XsltXattr["select message"] = Fleur.Xlength;
+Fleur.XsltXattr["select namespace"] = Fleur.Xlength;
+Fleur.XsltXattr["select number"] = Fleur.Xlength;
+Fleur.XsltXattr["select on-completion"] = Fleur.Xlength;
+Fleur.XsltXattr["select param"] = Fleur.Xlength;
+Fleur.XsltXattr["select perform-sort"] = Fleur.Xlength;
+Fleur.XsltXattr["select processing-instruction"] = Fleur.Xlength;
+Fleur.XsltXattr["select sequence"] = Fleur.Xlength;
+Fleur.XsltXattr["select sort"] = Fleur.Xlength;
+Fleur.XsltXattr["select try"] = Fleur.Xlength;
+Fleur.XsltXattr["select value-of"] = Fleur.Xlength;
+Fleur.XsltXattr["select variable"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["select with-param"] = Fleur.Xlength++] = [1, 4, "xsltx:select"];
+Fleur.XsltXattr["separator attribute"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["separator value-of"] = Fleur.Xlength++] = [1, 5, "avtx:separator"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["sort-before-merge merge-source"] = Fleur.Xlength++] = [2, 3, "sort-before-merge"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["stable sort"] = Fleur.Xlength++] = [1, 5, "avtx:stable"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["standalone output"] = Fleur.Xlength++] = [2, 3, "standalone"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["standalone result-document"] = Fleur.Xlength++] = [1, 5, "avtx:standalone"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["start-at number"] = Fleur.Xlength++] = [1, 5, "avtx:start-at"];
+Fleur.XsltXattr["static param"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["static variable"] = Fleur.Xlength++] = [2, 3, "static"];
+Fleur.XsltXattr["streamable accumulator"] = Fleur.Xlength;
+Fleur.XsltXattr["streamable attribute-set"] = Fleur.Xlength;
+Fleur.XsltXattr["streamable merge-source"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["streamable mode"] = Fleur.Xlength++] = [2, 3, "streamable"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["string output-character"] = Fleur.Xlength++] = [2, 3, "string"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["stylesheet-prefix namespace-alias"] = Fleur.Xlength++] = [2, 3, "stylesheet-prefix"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["suppress-indentation output"] = Fleur.Xlength++] = [2, 3, "suppress-indentation"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["suppress-indentation result-document"] = Fleur.Xlength++] = [1, 5, "avtx:suppress-indentation"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["terminate message"] = Fleur.Xlength++] = [1, 5, "avtx:terminate"];
+Fleur.XsltXattr["test assert"] = Fleur.Xlength;
+Fleur.XsltXattr["test if"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["test when"] = Fleur.Xlength++] = [1, 4, "xsltx:test"];
+Fleur.XsltXattr["tunnel param"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["tunnel with-param"] = Fleur.Xlength++] = [2, 3, "tunnel"];
+Fleur.XsltXattr["type attribute"] = Fleur.Xlength;
+Fleur.XsltXattr["type copy"] = Fleur.Xlength;
+Fleur.XsltXattr["type copy-of"] = Fleur.Xlength;
+Fleur.XsltXattr["type document"] = Fleur.Xlength;
+Fleur.XsltXattr["type element"] = Fleur.Xlength;
+Fleur.XsltXattr["type result-document"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["type stream"] = Fleur.Xlength++] = [2, 3, "type"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["typed mode"] = Fleur.Xlength++] = [2, 3, "typed"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["undeclare-prefixes output"] = Fleur.Xlength++] = [2, 3, "undeclare-prefixes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["undeclare-prefixes result-document"] = Fleur.Xlength++] = [1, 5, "avtx:undeclare-prefixes"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["use context-item"] = Fleur.Xlength++] = [2, 3, "use"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["use key"] = Fleur.Xlength++] = [1, 4, "xsltx:use"];
+Fleur.XsltXattr["use-attribute-sets attribute-set"] = Fleur.Xlength;
+Fleur.XsltXattr["use-attribute-sets copy"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["use-attribute-sets element"] = Fleur.Xlength++] = [2, 3, "use-attribute-sets"];
+Fleur.XsltXattr["use-character-maps character-map"] = Fleur.Xlength;
+Fleur.XsltXattr["use-character-maps output"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["use-character-maps result-document"] = Fleur.Xlength++] = [2, 3, "use-character-maps"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["use-when *"] = Fleur.Xlength++] = [1, 4, "xsltx:use-when"];
+Fleur.XsltXattr["validation attribute"] = Fleur.Xlength;
+Fleur.XsltXattr["validation copy"] = Fleur.Xlength;
+Fleur.XsltXattr["validation copy-of"] = Fleur.Xlength;
+Fleur.XsltXattr["validation document"] = Fleur.Xlength;
+Fleur.XsltXattr["validation element"] = Fleur.Xlength;
+Fleur.XsltXattr["validation result-document"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["validation stream"] = Fleur.Xlength++] = [2, 3, "validation"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["value number"] = Fleur.Xlength++] = [1, 4, "xsltx:value"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["version *"] = Fleur.Xlength++] = [2, 3, "version"];
+Fleur.XsltXattr["visibility accept"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility accumulator"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility attribute-set"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility expose"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility function"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility mode"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility param"] = Fleur.Xlength;
+Fleur.XsltXattr["visibility template"] = Fleur.Xlength;
+Fleur.XsltXNames[1][Fleur.XsltXattr["visibility variable"] = Fleur.Xlength++] = [2, 3, "visibility"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["warning-on-multiple-match mode"] = Fleur.Xlength++] = [2, 3, "warning-on-multiple-match"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["warning-on-no-match mode"] = Fleur.Xlength++] = [2, 3, "warning-on-no-match"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["with-params evaluate"] = Fleur.Xlength++] = [1, 4, "xsltx:with-params"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["xpath evaluate"] = Fleur.Xlength++] = [1, 4, "xsltx:xpath"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["xpath-default-namespace *"] = Fleur.Xlength++] = [2, 3, "xpath-default-namespace"];
+Fleur.XsltXNames[1][Fleur.XsltXattr["zero-digit decimal-format"] = Fleur.Xlength++] = [2, 3, "zero-digit"];
+
+Fleur.XsltXNames[1][Fleur.XsltX.xslt = Fleur.Xlength++] = [2, 1, "xmlns:xsl"];
+Fleur.XsltXNames[1][Fleur.XsltX.xsltx = Fleur.Xlength++] = [2, 1, "xmlns:xsltx"];
+Fleur.XsltXNames[1][Fleur.XsltX.avtx = Fleur.Xlength++] = [2, 1, "xmlns:avtx"];
+Fleur.XsltXNames[1][Fleur.XsltX.patternx = Fleur.Xlength++] = [2, 1, "xmlns:patternx"];
+
+Fleur.XsltEngine = Fleur.XQueryEngine.slice();
+Fleur.XsltEngine[Fleur.XsltX.accept] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.accumulator] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.assert] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.attribute] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.break] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.catch] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.choose] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.comment] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.copy] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.document] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.element] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.evaluate] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.expose] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.fallback] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.fork] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.function] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.if] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.import] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.include] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.iterate] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.key] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.map] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.merge] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.message] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.mode] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.namespace] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.number] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.otherwise] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.output] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.override] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.package] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.param] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.sequence] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.sort] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.stream] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.stylesheet] = function(ctx, children) {
+	var i = 0, l;
+	l = children.length;
+	while (i < l) {
+		Fleur.XsltEngine[children[i][0]](ctx, children[i][1]);
+		i++;
+	}
+};
+Fleur.XsltEngine[Fleur.XsltX.template] = function(ctx, children) {
+	var i = 0, l, template = {};
+	l = children.length;
+	while (i < l) {
+		if (Fleur.XsltXNames[1][children[i][0]][0] !== 2 && Fleur.XsltXNames[1][children[i][0]][1] !== 4 && Fleur.XsltXNames[1][children[i][0]][1] !== 5) {
+			break;
+		}
+		Fleur.XsltEngine[children[i][0]](template, children[i][1]);
+		i++;
+	}
+	template.mode = template.mode || "#default";
+	if (template.name) {
+		ctx.template[1][template.name] = [template, children.slice(i)];
+	}
+	if (template.match) {
+		if (ctx.template[0][template.mode]) {
+			ctx.template[0][template.mode].push([template, children.slice(i)]);
+		} else {
+			ctx.template[0][template.mode] = [[template, children.slice(i)]];
+		}
+	}
+};
+Fleur.XsltEngine[Fleur.XsltX.text] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.try] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.variable] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.when] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["accumulator-rule"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["analyze-string"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["apply-imports"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["apply-templates"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["attribute-set"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["call-template"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["character-map"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["context-item"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["copy-of"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["for-each"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["import-schema"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["map-entry"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["matching-substring"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["merge-action"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["merge-key"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["merge-source"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["namespace-alias"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["next-iteration"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["next-match"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["non-matching-substring"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["on-completion"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["output-character"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["perform-sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["post-descent"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["preserve-space"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["processing-instruction"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["strip-space"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["use-package"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["value-of"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX["with-param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.avtx] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.xslt] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltX.xsltx] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["NaN decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["as with-param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["base-uri evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["bind-group merge"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["bind-grouping-key for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["bind-key merge"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["bind-source merge-source"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["byte-order-mark output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["byte-order-mark result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["cache function"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["case-order sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["cdata-section-elements output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["cdata-section-elements result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["character output-character"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["collation merge-key"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["collation sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["component expose"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["composite key"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["context-item evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["copy-namespaces copy-of"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["count number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["data-type sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["decimal-separator decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["default-collation *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["default-mode *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["default-validation *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["digit decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["disable-output-escaping value-of"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["doctype-public output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["doctype-public result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["doctype-system output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["doctype-system result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["elements strip-space"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["encoding output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["encoding result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["error-code message"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["errors catch"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["escape-uri-attributes output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["escape-uri-attributes result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["exclude-result-prefixes *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["expand-text *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["extension-element-prefixes *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["flags analyze-string"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["for-each merge-source"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["format result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["from number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["group-adjacent for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["group-by for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["group-ending-with for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["group-starting-with for-each-group"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["grouping-separator decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["grouping-separator number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["grouping-size number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["href include"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["href stream"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["html-version output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["html-version result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["id transform"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["identity-sensitive function"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["include-content-type output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["include-content-type result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["indent output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["indent result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["infinity decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["inherit-namespaces element"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["initial-value accumulator"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["input-type-annotations transform"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["item-separator output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["item-separator result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["key map-entry"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["lang sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["letter-value number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["level number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["match template"]] = function(ctx, children) {
+	ctx.match = children[0];
+};
+Fleur.XsltEngine[Fleur.XsltXattr["media-type output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["media-type result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["method output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["method result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["minus-sign decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["mode template"]] = function(ctx, children) {
+	ctx.mode = children[0];
+};
+Fleur.XsltEngine[Fleur.XsltXattr["name processing-instruction"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["name with-param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["names expose"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["namespace element"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["namespace import-schema"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["namespace-context evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["new-value accumulator-rule"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["normalization-form output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["normalization-form result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["omit-xml-declaration output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["omit-xml-declaration result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["on-empty element"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["on-multiple-match mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["on-no-match mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["order sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["ordinal number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["output-version result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["override function"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["override-extension-function function"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["package-version use-package"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["parameter-document output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["parameter-document result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["pattern-separator decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["per-mille decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["percent decimal-format"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["phase accumulator-rule"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["priority template"]] = function(ctx, children) {
+	ctx.priority = children[0];
+};
+Fleur.XsltEngine[Fleur.XsltXattr["regex analyze-string"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["required param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["result-prefix namespace-alias"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["schema-aware evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["schema-location import-schema"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["select with-param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["separator value-of"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["sort-before-merge merge-source"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["stable sort"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["standalone output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["standalone result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["start-at number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["static variable"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["streamable mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["string output-character"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["stylesheet-prefix namespace-alias"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["suppress-indentation output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["suppress-indentation result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["terminate message"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["test when"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["tunnel with-param"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["type stream"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["typed mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["undeclare-prefixes output"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["undeclare-prefixes result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["use context-item"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["use key"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["use-attribute-sets element"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["use-character-maps result-document"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["use-when *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["validation stream"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["value number"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["version *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["visibility variable"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["warning-on-multiple-match mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["warning-on-no-match mode"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["with-params evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["xpath evaluate"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["xpath-default-namespace *"]] = function(ctx, children) {};
+Fleur.XsltEngine[Fleur.XsltXattr["zero-digit decimal-format"]] = function(ctx, children) {};
 
 Fleur.XPathEvaluator = function() {};
 Fleur.XPathEvaluator._precedence = "././/.;0.!.;1.~+.~-.;2.cast as.;3.castable as.;4.treat as.;5.instance of.;6.intersect.except.;7.|.union.;8.div.mod.*.idiv.;9.+.-.;10.to;11.||.;12.eq.ne.lt.le.gt.ge.<.>.<=.>=.is.<<.>>.=.!=.;13.and.;14.or.;15.for.let.some.every.then.else.in.:=.return.satisfies.;16.,.;17.";
@@ -2540,7 +4717,7 @@ Fleur.XPathEvaluator._skipSpaces = function(s, offset) {
 	var c = s.charAt(i);
 	do {
 		if (c === "(" && s.charAt(i + 1) === ":") {
-			i = skipComment(s, i + 2);
+			i = Fleur.XPathEvaluator._skipComment(s, i + 2);
 		} else if (c !== "\n" && c !== "\r" && c !== "\t" && c !== " ") {
 			return i;
 		}
@@ -2579,14 +4756,14 @@ Fleur.XPathEvaluator._getNameStep = function(s, attr) {
 	var sind = eq ? n2.indexOf("}") : n2.indexOf(":");
 	var n3 = sind !== -1 ? n2.substr(sind + 1) : n2;
 	var nsp = eq ? n2.substr(2, sind - 2) : sind !== -1 ? n2.substr(0, sind) : "";
-	var ntest = n3 === "*" || nsp === "*" ? "[XQueryX.Wildcard,[" + (n3 !== "*" ? "[XQueryX.star,[]],[XQueryX.NCName,['" + n3 + "']]" : "") + "]]" : "[XQueryX.nameTest,['" + n3 + "'" + (eq || sind !== -1 ? ",[" + (eq ? "XQueryX.URI" : "XQueryX.prefix") + ",['" + nsp + "']]" : "") + "]]";
-	return (n.length + attr) + ".[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['" + axis + "']]," + ntest + "]]]]";
+	var ntest = n3 === "*" || nsp === "*" ? "[Fleur.XQueryX.Wildcard,[" + (n3 !== "*" ? "[Fleur.XQueryX.star,[]],[Fleur.XQueryX.NCName,['" + n3 + "']]" : "") + "]]" : "[Fleur.XQueryX.nameTest,['" + n3 + "'" + (eq || sind !== -1 ? ",[" + (eq ? "Fleur.XQueryX.URI" : "Fleur.XQueryX.prefix") + ",['" + nsp + "']]" : "") + "]]";
+	return (n.length + attr) + ".[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['" + axis + "']]," + ntest + "]]]]";
 };
 Fleur.XPathEvaluator._pathExprFormat = function(s, p) {
-	if (s.substr(0, 19) === "[XQueryX.pathExpr,[") {
-		return s.substr(19, s.length - 23) + p + "]]";
+	if (s.substr(0, 25) === "[Fleur.XQueryX.pathExpr,[") {
+		return s.substr(25, s.length - 29) + p + "]]";
 	}
-	return "[XQueryX.stepExpr,[[XQueryX.filterExpr,[" + s + "]]" + p + "]]";
+	return "[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.filterExpr,[" + s + "]]" + p + "]]";
 };
 Fleur.XPathEvaluator._calc = function(args, ops, opprec) {
 	if (ops === "" || parseInt(ops.split(".")[1], 10) > opprec) {
@@ -2603,72 +4780,72 @@ Fleur.XPathEvaluator._calc = function(args, ops, opprec) {
 	switch (op) {
 		case ",":
 			if (ops.substr(0, 13) === "4.17.,5.999.(") {
-				if (arg1val.substr(0, 20) === "[XQueryX.arguments,[") {
+				if (arg1val.substr(0, 26) === "[Fleur.XQueryX.arguments,[") {
 					arg = arg1val.substr(0, arg1len - 2) + "," + arg2val + "]]";
 				} else {
-					arg = "[XQueryX.arguments,[" + arg1val + "," + arg2val + "]]";
+					arg = "[Fleur.XQueryX.arguments,[" + arg1val + "," + arg2val + "]]";
 				}
 			} else if (ops === "4.17.,") {
-				if (arg1val.substr(0, 23) === "[XQueryX.sequenceExpr,[") {
+				if (arg1val.substr(0, 29) === "[Fleur.XQueryX.sequenceExpr,[") {
 					arg = arg1val.substr(0, arg1len - 2) + "," + arg2val + "]]";
 				} else {
-					arg = "[XQueryX.sequenceExpr,[" + arg1val + "," + arg2val + "]]";
+					arg = "[Fleur.XQueryX.sequenceExpr,[" + arg1val + "," + arg2val + "]]";
 				}
 			} else {
 				arg = arg1val + "," + arg2val;
 			}
 			break;
 		case "//":
-			arg = "[XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + ",[XQueryX.stepExpr,[[XQueryX.xpathAxis,['descendant-or-self']],[XQueryX.anyKindTest,[]]]]," + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") + "]]";
+			arg = "[Fleur.XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + ",[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['descendant-or-self']],[Fleur.XQueryX.anyKindTest,[]]]]," + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") + "]]";
 			break;
 		case "/":
-			arg = "[XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + (arg2val !== "" ? "," + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") : "") + "]]";
+			arg = "[Fleur.XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + (arg2val !== "" ? "," + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") : "") + "]]";
 			break;
 		case "!":
-			arg = "[XQueryX.simpleMapExpr,[[XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + "]],[XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") + "]]]]";
+			arg = "[Fleur.XQueryX.simpleMapExpr,[[Fleur.XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg1val, "") + "]],[Fleur.XQueryX.pathExpr,[" + Fleur.XPathEvaluator._pathExprFormat(arg2val, "") + "]]]]";
 			break;
 		case "|":
-			arg = "[XQueryX.unionOp,[[XQueryX.firstOperand,[" + arg1val + "]],[XQueryX.secondOperand,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX.unionOp,[[Fleur.XQueryX.firstOperand,[" + arg1val + "]],[Fleur.XQueryX.secondOperand,[" + arg2val + "]]]]";
 			break;
 		case "to":
-			arg = "[XQueryX.rangeSequenceExpr,[[XQueryX.startExpr,[" + arg1val + "]],[XQueryX.endExpr,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX.rangeSequenceExpr,[[Fleur.XQueryX.startExpr,[" + arg1val + "]],[Fleur.XQueryX.endExpr,[" + arg2val + "]]]]";
 			break;
 		case "~-":
-			arg = "[XQueryX.unaryMinusOp,[[XQueryX.operand,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX.unaryMinusOp,[[Fleur.XQueryX.operand,[" + arg2val + "]]]]";
 			break;
 		case "~+":
-			arg = "[XQueryX.unaryPlusOp,[[XQueryX.operand,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX.unaryPlusOp,[[Fleur.XQueryX.operand,[" + arg2val + "]]]]";
 			break;
 		case "in":
 			if (ops.substr(ops.length - 7) === "5.999.q") {
-				arg = "[XQueryX.quantifiedExprInClause,[[XQueryX.typedVariableBinding,[[XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(32) + "]]]],[XQueryX.sourceExpr,[" + arg2val + "]]]]";
+				arg = "[Fleur.XQueryX.quantifiedExprInClause,[[Fleur.XQueryX.typedVariableBinding,[[Fleur.XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(44) + "]]]],[Fleur.XQueryX.sourceExpr,[" + arg2val + "]]]]";
 			} else {
-				arg = "[XQueryX.forClauseItem,[[XQueryX.typedVariableBinding,[[XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(32) + "]]]],[XQueryX.forExpr,[" + arg2val + "]]]]";
+				arg = "[Fleur.XQueryX.forClauseItem,[[Fleur.XQueryX.typedVariableBinding,[[Fleur.XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(44) + "]]]],[Fleur.XQueryX.forExpr,[" + arg2val + "]]]]";
 			}
 			break;
 		case ":=":
-			arg = "[XQueryX.letClauseItem,[[XQueryX.typedVariableBinding,[[XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(32) + "]]]],[XQueryX.letExpr,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX.letClauseItem,[[Fleur.XQueryX.typedVariableBinding,[[Fleur.XQueryX.varName,[" + arg1val.substr(0, arg1val.length - 4).substr(44) + "]]]],[Fleur.XQueryX.letExpr,[" + arg2val + "]]]]";
 			break;
 		case "return":
-			arg = arg1val.substr(0, arg1val.length - 2) + ",[XQueryX.returnClause,[" + arg2val + "]]]]";
+			arg = arg1val.substr(0, arg1val.length - 2) + ",[Fleur.XQueryX.returnClause,[" + arg2val + "]]]]";
 			break;
 		case "satisfies":
-			arg = arg1val.substr(0, arg1val.length - 2) + ",[XQueryX.predicateExpr,[" + arg2val + "]]]]";
+			arg = arg1val.substr(0, arg1val.length - 2) + ",[Fleur.XQueryX.predicateExpr,[" + arg2val + "]]]]";
 			break;
 		case "cast as":
-			var arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.nameTest,") + 18);
-			var arg2val3 = "[XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
-			arg = "[XQueryX.castExpr,[[XQueryX.argExpr,[" + arg1val + "]],[XQueryX.singleType,[" + arg2val3 + "]]]]";
+			var arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.nameTest,") + 24);
+			var arg2val3 = "[Fleur.XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
+			arg = "[Fleur.XQueryX.castExpr,[[Fleur.XQueryX.argExpr,[" + arg1val + "]],[Fleur.XQueryX.singleType,[" + arg2val3 + "]]]]";
 			break;
 		case "castable as":
-			var arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.nameTest,") + 18);
-			var arg2val3 = "[XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
-			arg = "[XQueryX.castableExpr,[[XQueryX.argExpr,[" + arg1val + "]],[XQueryX.singleType,[" + arg2val3 + "]]]]";
+			var arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.nameTest,") + 24);
+			var arg2val3 = "[Fleur.XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
+			arg = "[Fleur.XQueryX.castableExpr,[[Fleur.XQueryX.argExpr,[" + arg1val + "]],[Fleur.XQueryX.singleType,[" + arg2val3 + "]]]]";
 			break;
 		case "treat as":
-			var arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.elementTest,"));
-			var arg2val3 = "[XQueryX.sequenceType,[" + arg2val2.substr(0, arg2val2.length - 2);
-			arg = "[XQueryX.treatExpr,[[XQueryX.argExpr,[" + arg1val + "]]," + arg2val3 + "]]";
+			var arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.elementTest,"));
+			var arg2val3 = "[Fleur.XQueryX.sequenceType,[" + arg2val2.substr(0, arg2val2.length - 2);
+			arg = "[Fleur.XQueryX.treatExpr,[[Fleur.XQueryX.argExpr,[" + arg1val + "]]," + arg2val3 + "]]";
 			break;
 		case "instance of":
 		case "instance of+":
@@ -2676,58 +4853,58 @@ Fleur.XPathEvaluator._calc = function(args, ops, opprec) {
 		case "instance of*":
 			var occ = op.charAt(11);
 			var arg2val2, arg2val3;
-			if (arg2val.indexOf("[XQueryX.nameTest,") !== -1) {
-				arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.nameTest,") + 18);
-				arg2val3 = "[XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
-			} else if (arg2val.indexOf("[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],") !== -1) {
-				arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],") + 68);
+			if (arg2val.indexOf("[Fleur.XQueryX.nameTest,") !== -1) {
+				arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.nameTest,") + 24);
+				arg2val3 = "[Fleur.XQueryX.atomicType," + arg2val2.substr(0, arg2val2.length - 4);
+			} else if (arg2val.indexOf("[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],") !== -1) {
+				arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],") + 86);
 				arg2val3 = arg2val2.substr(0, arg2val2.length - 4);
 			} else {
-				arg2val2 = arg2val.substr(arg2val.indexOf("[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['attribute']],") + 72);
+				arg2val2 = arg2val.substr(arg2val.indexOf("[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['attribute']],") + 90);
 				arg2val3 = arg2val2.substr(0, arg2val2.length - 4);
 			}
-			arg = "[XQueryX.instanceOfExpr,[[XQueryX.argExpr,[" + arg1val + "]],[XQueryX.sequenceType,[" + arg2val3 + (occ !== "" ? ",[XQueryX.occurrenceIndicator,['" + occ + "']]" : "") + "]]]]";
+			arg = "[Fleur.XQueryX.instanceOfExpr,[[Fleur.XQueryX.argExpr,[" + arg1val + "]],[Fleur.XQueryX.sequenceType,[" + arg2val3 + (occ !== "" ? ",[Fleur.XQueryX.occurrenceIndicator,['" + occ + "']]" : "") + "]]]]";
 			break;
 		case "then":
-			if (arg1val.substr(0, 77) === "[XQueryX.functionCallExpr,[[XQueryX.functionName,['if']],[XQueryX.arguments,[") {
-				arg = "[XQueryX.ifThenElseExpr,[[XQueryX.ifClause,[" + arg1val.substr(0, arg1val.length - 4).substr(arg1val.indexOf(",[XQueryX.arguments,[") + 21) + "]],[XQueryX.thenClause,[" + arg2val + "]]]]";
+			if (arg1val.substr(0, 95) === "[Fleur.XQueryX.functionCallExpr,[[Fleur.XQueryX.functionName,['if']],[Fleur.XQueryX.arguments,[") {
+				arg = "[Fleur.XQueryX.ifThenElseExpr,[[Fleur.XQueryX.ifClause,[" + arg1val.substr(0, arg1val.length - 4).substr(arg1val.indexOf(",[Fleur.XQueryX.arguments,[") + 27) + "]],[Fleur.XQueryX.thenClause,[" + arg2val + "]]]]";
 			}
 			break;
 		case "else":
-			if (arg1val.substr(0, 24) === "[XQueryX.ifThenElseExpr,") {
-				arg = arg1val.substr(0, arg1val.length - 2) + ",[XQueryX.elseClause,[" + arg2val + "]]]]";
+			if (arg1val.substr(0, 30) === "[Fleur.XQueryX.ifThenElseExpr,") {
+				arg = arg1val.substr(0, arg1val.length - 2) + ",[Fleur.XQueryX.elseClause,[" + arg2val + "]]]]";
 			}
 			break;
 		default:
 			var opcode0 = Fleur.XPathEvaluator._opcodes.substr(Fleur.XPathEvaluator._opcodes.indexOf("." + op + ";") + op.length + 2);
 			var opcode = opcode0.substr(0, opcode0.indexOf("."));
-			arg = "[XQueryX." + opcode + ",[[XQueryX.firstOperand,[" + arg1val + "]],[XQueryX.secondOperand,[" + arg2val + "]]]]";
+			arg = "[Fleur.XQueryX." + opcode + ",[[Fleur.XQueryX.firstOperand,[" + arg1val + "]],[Fleur.XQueryX.secondOperand,[" + arg2val + "]]]]";
 	}
 	var args2 = arg.length + "." + arg + args3.substr(arg1len.length + 1 + parseInt(arg1len, 10));
 	return Fleur.XPathEvaluator._calc(args2, ops.substr(ops.indexOf(".") + 1).substr(parseInt(ops.substr(0, ops.indexOf(".")), 10)), opprec);
 };
 Fleur.XPathEvaluator._testFormat = function(s, namecode) {
-	var arg1, arg2, arg20;
+	var arg1, arg2, arg20, arg200;
 	if (s === "") {
 		return "";
 	}
-	if (s.indexOf(",[XQueryX.pathExpr,[") !== -1) {
-		arg1 = s.substr(0, s.indexOf(",[XQueryX.pathExpr,["));
-		arg20 = s.substr(s.indexOf(",[XQueryX.pathExpr,[") + 1);
-		arg200 = arg20.substr(arg20.indexOf("[XQueryX.nameTest,['") + 19);
-		arg2 = "," + "[XQueryX.typeName,[" + arg200.substr(0, arg200.length - 6) + "]]";
+	if (s.indexOf(",[Fleur.XQueryX.pathExpr,[") !== -1) {
+		arg1 = s.substr(0, s.indexOf(",[Fleur.XQueryX.pathExpr,["));
+		arg20 = s.substr(s.indexOf(",[Fleur.XQueryX.pathExpr,[") + 1);
+		arg200 = arg20.substr(arg20.indexOf("[Fleur.XQueryX.nameTest,['") + 25);
+		arg2 = "," + "[Fleur.XQueryX.typeName,[" + arg200.substr(0, arg200.length - 6) + "]]";
 	} else {
 		arg1 = s;
 		arg2 = "";
 	}
-	var arg120 = arg1.indexOf("[XQueryX.nameTest,['") !== -1 ? arg1.substr(arg1.indexOf("[XQueryX.nameTest,['") + 19) : "[XQueryX.star,[]]";
-	var arg12 = "[" + namecode + ",[" + (arg120 === "[XQueryX.star,[]]" ? arg120 : "[XQueryX.QName,[" + arg120.substr(0, arg120.length - 6) + "]]") + "]]";
+	var arg120 = arg1.indexOf("[Fleur.XQueryX.nameTest,['") !== -1 ? arg1.substr(arg1.indexOf("[Fleur.XQueryX.nameTest,['") + 25) : "[Fleur.XQueryX.star,[]]";
+	var arg12 = "[" + namecode + ",[" + (arg120 === "[Fleur.XQueryX.star,[]]" ? arg120 : "[Fleur.XQueryX.QName,[" + arg120.substr(0, arg120.length - 6) + "]]") + "]]";
 	return arg12 + arg2;
 };
 Fleur.XPathEvaluator._getPredParam = function(c, s, l, arg) {
 	l = l || 0;
 	var p;
-	var t = Fleur.XPathEvaluator._xp2js(s, "", l === 0 ? "" : arg.substr(0, 45) === "[XQueryX.quantifiedExpr,[[XQueryX.quantifier," ? "5.999.q" : "5.999.(");
+	var t = Fleur.XPathEvaluator._xp2js(s, "", l === 0 ? "" : arg.substr(0, 57) === "[Fleur.XQueryX.quantifiedExpr,[[Fleur.XQueryX.quantifier," ? "5.999.q" : "5.999.(");
 	var plen = s.length - parseInt(t.substr(0, t.indexOf(".")), 10) + 1;
 	if (t.indexOf("~~~~") !== -1) {
 		var t0 = t + "~#~#";
@@ -2739,100 +4916,100 @@ Fleur.XPathEvaluator._getPredParam = function(c, s, l, arg) {
 		var msg2 = '"' + "~~~~Unrecognized expression '" + s + "'~#~#" + '"';
 		p = plen + "." + msg2;
 	} else if (c === "(" ) {
-		if (arg.substr(0, 59) === "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['") {
-			var fname0 = arg.substr(arg.indexOf("[XQueryX.nameTest,['") + 19);
+		if (arg.substr(0, 77) === "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['") {
+			var fname0 = arg.substr(arg.indexOf("[Fleur.XQueryX.nameTest,['") + 25);
 			var fname = fname0.substr(0, fname0.length - 6);
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
 			var parg0, parg;
 			switch (fname) {
 				case "'attribute'":
-					parg = Fleur.XPathEvaluator._testFormat(fargs2, "XQueryX.attributeName");
-					p = plen + "." + "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['attribute']],[XQueryX.attributeTest,[" + parg + "]]]]]]";
+					parg = Fleur.XPathEvaluator._testFormat(fargs2, "Fleur.XQueryX.attributeName");
+					p = plen + "." + "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['attribute']],[Fleur.XQueryX.attributeTest,[" + parg + "]]]]]]";
 					break;
 				case "'comment'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['comment']]]]")) + "[XQueryX.commentTest,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['comment']]]]")) + "[Fleur.XQueryX.commentTest,[]]]]]]";
 					break;
 				case "'document-node'":
 					if (fargs2 !== "") {
-						var parg0 = fargs2.substr(fargs2.indexOf("[XQueryX.elementTest,["));
+						var parg0 = fargs2.substr(fargs2.indexOf("[Fleur.XQueryX.elementTest,["));
 						parg = parg0.substr(0, parg0.length - 4);
 					} else {
 						parg = "";
 					}
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['document-node']]]]")) + "[XQueryX.documentTest,[" + parg + "]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['document-node']]]]")) + "[Fleur.XQueryX.documentTest,[" + parg + "]]]]]]";
 					break;
 				case "'element'":
-					parg = testFormat(fargs2, "XQueryX.elementName");
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['element']]]]")) + "[XQueryX.elementTest,[" + parg + "]]]]]]";
+					parg = Fleur.XPathEvaluator._testFormat(fargs2, "Fleur.XQueryX.elementName");
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['element']]]]")) + "[Fleur.XQueryX.elementTest,[" + parg + "]]]]]]";
 					break;
 				case "'function'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['function']]]]")) + "[33,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['function']]]]")) + "[33,[]]]]]]";
 					break;
 				case "'namespace-node'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['namespace-node']]]]")) + "[XQueryX.namespaceTest,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['namespace-node']]]]")) + "[Fleur.XQueryX.namespaceTest,[]]]]]]";
 					break;
 				case "'node'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['node']]]]")) + "[XQueryX.anyKindTest,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['node']]]]")) + "[Fleur.XQueryX.anyKindTest,[]]]]]]";
 					break;
 				case "'processing-instruction'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['processing-instruction']]]]")) + "[XQueryX.piTest,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['processing-instruction']]]]")) + "[Fleur.XQueryX.piTest,[]]]]]]";
 					break;
 				case "'schema-attribute'":
-					parg0 = fargs.substr(fargs.indexOf("[XQueryX.nameTest,['") + 19);
+					parg0 = fargs.substr(fargs.indexOf("[Fleur.XQueryX.nameTest,['") + 25);
 					parg = parg0.substr(0, parg0.length - 6);
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['schema-attribute']]]]")) + "[XQueryX.schemaAttributeTest,[" + parg + "]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['schema-attribute']]]]")) + "[Fleur.XQueryX.schemaAttributeTest,[" + parg + "]]]]]]";
 					break;
 				case "'schema-element'":
-					parg0 = fargs.substr(fargs.indexOf("[XQueryX.nameTest,['") + 19);
+					parg0 = fargs.substr(fargs.indexOf("[Fleur.XQueryX.nameTest,['") + 25);
 					parg = parg0.substr(0, parg0.length - 6);
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['schema-element']]]]")) + "[XQueryX.schemaElementTest,[" + parg + "]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['schema-element']]]]")) + "[Fleur.XQueryX.schemaElementTest,[" + parg + "]]]]]]";
 					break;
 				case "'text'":
-					p = plen + "." + arg.substr(0, arg.indexOf("[XQueryX.nameTest,['text']]]]")) + "[XQueryX.textTest,[]]]]]]";
+					p = plen + "." + arg.substr(0, arg.indexOf("[Fleur.XQueryX.nameTest,['text']]]]")) + "[Fleur.XQueryX.textTest,[]]]]]]";
 					break;
 				default:
-					p = plen + ".[XQueryX.functionCallExpr,[[XQueryX.functionName,[" + fname + "]],[XQueryX.arguments,[" + fargs2 + "]]]]";
+					p = plen + ".[Fleur.XQueryX.functionCallExpr,[[Fleur.XQueryX.functionName,[" + fname + "]],[Fleur.XQueryX.arguments,[" + fargs2 + "]]]]";
 			}
-		} else if (arg.substr(0, 59) === "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.filterExpr,[") {
+		} else if (arg.substr(0, 77) === "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.filterExpr,[") {
 			var arg1, arg2, arg20;
-			if (arg.indexOf(",[XQueryX.predicates,[") !== -1) {
-				arg1 = arg.substr(0, arg.indexOf(",[XQueryX.predicates,[")).substr(59);
-				arg20 = arg.substr(arg.indexOf(",[XQueryX.predicates,[") + 22);
+			if (arg.indexOf(",[Fleur.XQueryX.predicates,[") !== -1) {
+				arg1 = arg.substr(0, arg.indexOf(",[Fleur.XQueryX.predicates,[")).substr(77);
+				arg20 = arg.substr(arg.indexOf(",[Fleur.XQueryX.predicates,[") + 28);
 				arg2 = arg20.substr(0, arg20.length - 6);
 			} else {
-				arg1 = arg.substr(0, arg.length - 8).substr(59);
+				arg1 = arg.substr(0, arg.length - 8).substr(77);
 				arg2 = "";
 			}
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
-			p = plen + ".[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.filterExpr,[[XQueryX.dynamicFunctionInvocationExpr,[[XQueryX.functionItem,[" + arg1 + (arg2 === "" ? "" : ",[XQueryX.predicates,[" + arg2 + "]]") + (fargs2 === "" ? "" : ",[XQueryX.arguments,[" + fargs2 + "]]") + "]]]]]]]]";
-		} else if (arg === "[XQueryX.flworExpr,[[XQueryX.forClause,[]]]]") {
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
+			p = plen + ".[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.filterExpr,[[Fleur.XQueryX.dynamicFunctionInvocationExpr,[[Fleur.XQueryX.functionItem,[" + arg1 + (arg2 === "" ? "" : ",[Fleur.XQueryX.predicates,[" + arg2 + "]]") + (fargs2 === "" ? "" : ",[Fleur.XQueryX.arguments,[" + fargs2 + "]]") + "]]]]]]]]";
+		} else if (arg === "[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.forClause,[]]]]") {
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
-			p = plen + ".[XQueryX.flworExpr,[[XQueryX.forClause,[" + fargs2 + "]]]]";
-		} else if (arg === "[XQueryX.flworExpr,[[XQueryX.letClause,[]]]]") {
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
+			p = plen + ".[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.forClause,[" + fargs2 + "]]]]";
+		} else if (arg === "[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.letClause,[]]]]") {
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
-			p = plen + ".[XQueryX.flworExpr,[[XQueryX.letClause,[" + fargs2 + "]]]]";
-		} else if (arg.substr(0, 45) === "[XQueryX.quantifiedExpr,[[XQueryX.quantifier,") {
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
+			p = plen + ".[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.letClause,[" + fargs2 + "]]]]";
+		} else if (arg.substr(0, 57) === "[Fleur.XQueryX.quantifiedExpr,[[Fleur.XQueryX.quantifier,") {
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
 			p = plen + "." + arg.substr(0, arg.length - 2) + "," + fargs2 + "]]";
 		} else if (arg !== "") {
 			var fargs = t.substr(t.indexOf(".") + 1);
-			var fargs2 = fargs.substr(0, 20) === "[XQueryX.arguments,[" ? fargs.substr(20, fargs.length - 22) : fargs;
-			p = plen + ".[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.filterExpr,[[XQueryX.dynamicFunctionInvocationExpr,[[XQueryX.functionItem,[" + arg + "]]" + (fargs2 === "" ? "" : ",[XQueryX.arguments,[" + fargs2 + "]]") + "]]]]]]]]";
+			var fargs2 = fargs.substr(0, 26) === "[Fleur.XQueryX.arguments,[" ? fargs.substr(26, fargs.length - 28) : fargs;
+			p = plen + ".[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.filterExpr,[[Fleur.XQueryX.dynamicFunctionInvocationExpr,[[Fleur.XQueryX.functionItem,[" + arg + "]]" + (fargs2 === "" ? "" : ",[Fleur.XQueryX.arguments,[" + fargs2 + "]]") + "]]]]]]]]";
 		} else {
 			p = plen + "." + t.substr(t.indexOf(".") + 1);
 		}
 	} else {
 		//predicates
-		if (arg.substr(0, 19) !== "[XQueryX.pathExpr,[") {
-			arg = "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.filterExpr,[" + arg + "]]]]]]";
+		if (arg.substr(0, 25) !== "[Fleur.XQueryX.pathExpr,[") {
+			arg = "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.filterExpr,[" + arg + "]]]]]]";
 		}
-		if (arg.indexOf(",[XQueryX.predicates,[") === -1) {
-			p = plen + "." + arg.substr(0, arg.length - 4) + ",[XQueryX.predicates,[" + t.substr(t.indexOf(".") + 1) + "]]]]]]";
+		if (arg.indexOf(",[Fleur.XQueryX.predicates,[") === -1) {
+			p = plen + "." + arg.substr(0, arg.length - 4) + ",[Fleur.XQueryX.predicates,[" + t.substr(t.indexOf(".") + 1) + "]]]]]]";
 		} else {
 			p = plen + "." + arg.substr(0, arg.length - 6) + "," + t.substr(t.indexOf(".") + 1) + "]]]]]]";
 		}
@@ -2872,18 +5049,18 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 	if (c === ".") {
 		if (d.charAt(0) === ".") {
 			//stepExpr
-			r = "2.[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['parent']],[XQueryX.anyKindTest,[]]]]]]";
+			r = "2.[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['parent']],[Fleur.XQueryX.anyKindTest,[]]]]]]";
 		} else {
 			//contextItemExpr
-			r = "1.[XQueryX.contextItemExpr,[]]";
+			r = "1.[Fleur.XQueryX.contextItemExpr,[]]";
 		}
 	} else if (c === ")") {
 		r = "0.";
 	} else if (c === "/") {
 		//rootExpr
-		r = "0.[XQueryX.pathExpr,[[XQueryX.rootExpr,[]]]]";
+		r = (d.charAt(0) === "" || "/*@.(_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(d.charAt(0)) === -1 ? "1" : "0") + ".[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.rootExpr,[]]]]";
 	} else if (c === "@") {
-		r = getNameStep(d, 1);
+		r = Fleur.XPathEvaluator._getNameStep(d, 1);
 	} else if (c === "'") {
 		//stringConstantExpr
 		var sep2 = d.indexOf("'");
@@ -2897,7 +5074,7 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 		if (t2b === "''") {
 			t2b = "";
 		}
-		r = (sep2 + 2) + ".[XQueryX.stringConstantExpr,[[XQueryX.value,[" + t2b + "]]]]";
+		r = (sep2 + 2) + ".[Fleur.XQueryX.stringConstantExpr,[[Fleur.XQueryX.value,[" + t2b + "]]]]";
 	} else if (c === '"') {
 		var sep3 = d.indexOf('"');
 		var t3 = d.substr(0, d.indexOf('"'));
@@ -2910,28 +5087,28 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 		if (t3b === '""') {
 			t3b = "";
 		}
-		r = (sep3 + 2) + ".[XQueryX.stringConstantExpr,[[XQueryX.value,[" + t3b + "]]]]";
+		r = (sep3 + 2) + ".[Fleur.XQueryX.stringConstantExpr,[[Fleur.XQueryX.value,[" + t3b + "]]]]";
 	} else if (c === "(") {
 		if (d.charAt(Fleur.XPathEvaluator._skipSpaces(d, 0)) === ")") {
-			r = "2.[XQueryX.sequenceExpr,[]]";
+			r = "2.[Fleur.XQueryX.sequenceExpr,[]]";
 		} else {
 			r = "0.";
 		}
 	} else if (c === "-" || c === "+") {
 		if (d !== "" && "0123456789".indexOf(d.charAt(0)) !== -1) {
 			var t4 = Fleur.XPathEvaluator._getNumber(d, c);
-			r = t4.length + ".[" + (t4.indexOf("E") !== -1 ? "XQueryX.doubleConstantExpr" : t4.indexOf(".") !== -1 ? "XQueryX.decimalConstantExpr" : "XQueryX.integerConstantExpr") + ",[[XQueryX.value,['" + t4 + "']]]]";
+			r = t4.length + ".[" + (t4.indexOf("E") !== -1 ? "Fleur.XQueryX.doubleConstantExpr" : t4.indexOf(".") !== -1 ? "Fleur.XQueryX.decimalConstantExpr" : "Fleur.XQueryX.integerConstantExpr") + ",[[Fleur.XQueryX.value,['" + t4 + "']]]]";
 		} else {
 			c = "~" + c;
 			r = "0.";
 		}
 	} else if (c !== "" && "0123456789".indexOf(c) !== -1) {
 		var t5 = Fleur.XPathEvaluator._getNumber(c + d);
-		r = t5.length + ".[" + (t5.indexOf("E") !== -1 ? "XQueryX.doubleConstantExpr" : t5.indexOf(".") !== -1 ? "XQueryX.decimalConstantExpr" : "XQueryX.integerConstantExpr") + ",[[XQueryX.value,['" + t5 + "']]]]";
+		r = t5.length + ".[" + (t5.indexOf("E") !== -1 ? "Fleur.XQueryX.doubleConstantExpr" : t5.indexOf(".") !== -1 ? "Fleur.XQueryX.decimalConstantExpr" : "Fleur.XQueryX.integerConstantExpr") + ",[[Fleur.XQueryX.value,['" + t5 + "']]]]";
 	} else if (c === "$") {
 		var t51 = Fleur.XPathEvaluator._getName(d);
 		var pt51 = (t51.indexOf(":") === -1 ? ":" : "") + t51;
-		r = (t51.length + 1) + ".[XQueryX.varRef,[[XQueryX.name,['" + pt51.substr(pt51.indexOf(":") + 1) + "'" + (pt51.charAt(0) === ":" ? "" : ",[XQueryX.prefix,['" + pt51.substr(0, pt51.indexOf(":")) + "']]") + "]]]]";
+		r = (t51.length + 1) + ".[Fleur.XQueryX.varRef,[[Fleur.XQueryX.name,['" + pt51.substr(pt51.indexOf(":") + 1) + "'" + (pt51.charAt(0) === ":" ? "" : ",[Fleur.XQueryX.prefix,['" + pt51.substr(0, pt51.indexOf(":")) + "']]") + "]]]]";
 	} else if (c !== "" && "_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz*".indexOf(c) !== -1) {
 		r = Fleur.XPathEvaluator._getNameStep(c + d, 0);
 	} else {
@@ -2977,20 +5154,20 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 	if (o === "$") {
 		//alert(o);
 		switch(rval) {
-			case "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],[XQueryX.nameTest,['for']]]]]]":
-				rval = "[XQueryX.flworExpr,[[XQueryX.forClause,[]]]]";
+			case "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],[Fleur.XQueryX.nameTest,['for']]]]]]":
+				rval = "[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.forClause,[]]]]";
 				op = "for";
 				break;
-			case "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],[XQueryX.nameTest,['let']]]]]]":
-				rval = "[XQueryX.flworExpr,[[XQueryX.letClause,[]]]]";
+			case "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],[Fleur.XQueryX.nameTest,['let']]]]]]":
+				rval = "[Fleur.XQueryX.flworExpr,[[Fleur.XQueryX.letClause,[]]]]";
 				op = "let";
 				break;
-			case "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],[XQueryX.nameTest,['every']]]]]]":
-				rval = "[XQueryX.quantifiedExpr,[[XQueryX.quantifier,['every']]]]";
+			case "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],[Fleur.XQueryX.nameTest,['every']]]]]]":
+				rval = "[Fleur.XQueryX.quantifiedExpr,[[Fleur.XQueryX.quantifier,['every']]]]";
 				op = "every";
 				break;
-			case "[XQueryX.pathExpr,[[XQueryX.stepExpr,[[XQueryX.xpathAxis,['child']],[XQueryX.nameTest,['some']]]]]]":
-				rval = "[XQueryX.quantifiedExpr,[[XQueryX.quantifier,['some']]]]";
+			case "[Fleur.XQueryX.pathExpr,[[Fleur.XQueryX.stepExpr,[[Fleur.XQueryX.xpathAxis,['child']],[Fleur.XQueryX.nameTest,['some']]]]]]":
+				rval = "[Fleur.XQueryX.quantifiedExpr,[[Fleur.XQueryX.quantifier,['some']]]]";
 				op = "some";
 				break;
 		}
@@ -3049,8 +5226,8 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 };
 Fleur.XPathEvaluator.prototype.createExpression = function(expression, resolver) {
 	expression = expression || "";
-//	return '[XQueryX.module,[[XQueryX.mainModule,[[XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[XQueryX.xqx,"http://www.w3.org/2005/XQueryX"],[XQueryX.schemaLocation,"http://www.w3.org/2005/XQueryX http://www.w3.org/2005/XQueryX/xqueryx.xsd"],[XQueryX.xsi,"http://www.w3.org/2001/XMLSchema-instance"]]]';
-	return '[XQueryX.module,[[XQueryX.mainModule,[[XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[XQueryX.xqx,"http://www.w3.org/2005/XQueryX"]]]';
+//	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"],[Fleur.XQueryX.schemaLocation,"http://www.w3.org/2005/XQueryX http://www.w3.org/2005/XQueryX/xqueryx.xsd"],[Fleur.XQueryX.xsi,"http://www.w3.org/2001/XMLSchema-instance"]]]';
+	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"]]]';
 };
 
 Fleur.GrammarParser = function() {};
