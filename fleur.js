@@ -1,6 +1,706 @@
 (function(Fleur) {
 "use strict";
 
+Fleur.XPathException = function(code, error) {
+	this.code = code;
+	this.error = error;
+};
+Fleur.XPathException.INVALID_EXPRESSION_ERR = 51;
+Fleur.XPathException.TYPE_ERR = 52;
+
+Fleur.XPathResult = function(resultType) {
+	this.resultType = resultType;
+};
+Fleur.XPathResult.ANY_TYPE = 0;
+Fleur.XPathResult.NUMBER_TYPE = 1;
+Fleur.XPathResult.STRING_TYPE = 2;
+Fleur.XPathResult.BOOLEAN_TYPE = 3;
+Fleur.XPathResult.UNORDERED_NODE_ITERATOR_TYPE = 4;
+Fleur.XPathResult.ORDERED_NODE_ITERATOR_TYPE = 5;
+Fleur.XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE = 6;
+Fleur.XPathResult.ORDERED_NODE_SNAPSHOT_TYPE = 7;
+Fleur.XPathResult.ANY_UNORDERED_NODE_TYPE = 8;
+Fleur.XPathResult.FIRST_ORDERED_NODE_TYPE = 9;
+Object.defineProperties(Fleur.XPathResult.prototype, {
+	numberValue: {
+		get: function() {
+			var jsNumber = Fleur.toJSNumber(this);
+			if (jsNumber[0] === -1) {
+				throw new Fleur.XPathException(Fleur.XPathException.TYPE_ERR, this._result.schemaTypeInfo === Fleur.Type_error ? this._result.nodeName : null);
+			}
+			return jsNumber[1];
+		}
+	},
+	stringValue: {
+		get: function() {
+			var jsString = Fleur.toJSString(this);
+			if (jsString[0] === -1) {
+				throw new Fleur.XPathException(Fleur.XPathException.TYPE_ERR, this._result.schemaTypeInfo === Fleur.Type_error ? this._result.nodeName : null);
+			}
+			return jsString[1];
+		}
+	},
+	booleanValue: {
+		get: function() {
+			var jsBoolean = Fleur.toJSBoolean(this);
+			if (jsBoolean[0] === -1) {
+				throw new Fleur.XPathException(Fleur.XPathException.TYPE_ERR, this._result.schemaTypeInfo === Fleur.Type_error ? this._result.nodeName : null);
+			}
+			return jsBoolean[1];
+		}
+	}
+});
+
+Fleur.XPathNSResolver = function(node) {
+	this.pf2uri = {
+		"xml": "http://www.w3.org/XML/1998/namespace",
+		"xmlns": "http://www.w3.org/2000/xmlns/"
+	};
+	this.node = node;
+};
+Fleur.XPathNSResolver.prototype.lookupNamespaceURI = function(prefix) {
+	var uri;
+	if (this.pf2uri[prefix]) {
+		return this.pf2uri[prefix];
+	}
+	uri = this.node.lookupNamespaceURI(prefix);
+	if (uri) {
+		this.pf2uri[prefix] = uri;
+	}
+	return uri;
+};
+
+Fleur._Atomize = function(a, n) {
+	switch (n.nodeType) {
+		case Fleur.Node.TEXT_NODE:
+			return n;
+		case Fleur.Node.DOCUMENT_NODE:
+			n = n.documentElement;
+		case Fleur.Node.ELEMENT_NODE:
+		case Fleur.Node.MAP_NODE:
+		case Fleur.Node.ENTRY_NODE:
+			a = new Fleur.Text();
+			a.data = n.textContent;
+			return a;
+		case Fleur.Node.ATTRIBUTE_NODE:
+			a = new Fleur.Text();
+			a.data = n.data.slice(0);
+			return a;
+		case Fleur.Node.SEQUENCE_NODE:
+		case Fleur.Node.ARRAY_NODE:
+			if (!a) {
+				a = new Fleur.Sequence();
+			}
+			for (i = 0, l < n.children.length; i < l; i++) {
+				a.appendChild(Fleur._Atomize(a, n.children[i]));
+			}
+			return a;
+	}
+};
+Fleur.Atomize = function(ctx) {
+	ctx._result = Fleur._Atomize(null, ctx._result);
+}
+
+Fleur.XPathConstructor = function(ctx, children, schemaType, stringreg, others, formatvalue) {
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	Fleur.Atomize(ctx);
+	if (ctx._result.schemaTypeInfo === Fleur.Type_error || ctx._result.schemaTypeInfo === schemaType) {
+		return;
+	}
+	if (ctx._result.schemaTypeInfo === Fleur.Type_string || ctx._result.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		if (!ctx._result.data || !(stringreg.test(ctx._result.data))) {
+			Fleur.error(ctx, "FORG0001");
+			return;
+		}
+	} else {
+		others(ctx);
+		if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
+			return;
+		}
+	}
+	ctx._result.schemaTypeInfo = schemaType;
+	if (formatvalue(ctx._result)) {
+		Fleur.error(ctx, "FORG0001");
+		return;
+	}
+};
+Fleur.XPathStringFunction = function(ctx, children, f, schemaTypeInfo) {
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	Fleur.Atomize(ctx);
+	if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
+		return;
+	}
+	if (ctx._result.schemaTypeInfo === Fleur.Type_string || ctx._result.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		ctx._result.data = "" + f(ctx._result.data);
+		if (schemaTypeInfo) {
+			ctx._result.schemaTypeInfo = schemaTypeInfo;
+		}
+	}
+};
+Fleur.XPathNumberFunction = function(ctx, children, f, schemaTypeInfo) {
+	var value;
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	Fleur.Atomize(ctx);
+	if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
+		return;
+	}
+	if (ctx._result.schemaTypeInfo === Fleur.Type_integer) {
+		value = f(parseInt(ctx._result.data, 10));
+		if (isNaN(value)) {
+			Fleur.error(ctx, "FORG0001");
+		} else {
+			ctx._result.data = "" + value;
+			if (schemaTypeInfo) {
+				ctx._result.schemaTypeInfo = schemaTypeInfo;
+			}
+		}
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_decimal || ctx._result.schemaTypeInfo === Fleur.Type_float || ctx._result.schemaTypeInfo === Fleur.Type_double) {
+		value = f(parseFloat(ctx._result.data));
+		if (isNaN(value)) {
+			Fleur.error(ctx, "FORG0001");
+		} else {
+			ctx._result.data = "" + value;
+			if (schemaTypeInfo) {
+				ctx._result.schemaTypeInfo = schemaTypeInfo;
+			}
+		}
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		value = f(parseInt(ctx._result.data, 10));
+		if (isNaN(value)) {
+			Fleur.error(ctx, "FORG0001");
+		} else {
+			ctx._result.data = "" + value;
+			if (schemaTypeInfo) {
+				ctx._result.schemaTypeInfo = schemaTypeInfo;
+			}
+		}
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "decimal", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "float", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "double", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		value = f(parseFloat(ctx._result.data));
+		if (isNaN(value)) {
+			Fleur.error(ctx, "FORG0001");
+		} else {
+			ctx._result.data = "" + value;
+			if (schemaTypeInfo) {
+				ctx._result.schemaTypeInfo = schemaTypeInfo;
+			}
+		}
+	}
+};
+Fleur.XPathFunctions = {};
+Fleur.XPathFunctions["http://www.w3.org/2001/XMLSchema"] = {};
+Fleur.XPathFunctions_xs = Fleur.XPathFunctions["http://www.w3.org/2001/XMLSchema"];
+Fleur.XPathFunctions_xs["ENTITY"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["ID"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["IDREF"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["NCName"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["NMTOKEN"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["Name"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["QName"] = function(ctx, children) {
+	var namespaceURI, qualifiedName;
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	namespaceURI = ctx._result.data;
+	Fleur.XQueryEngine[children[1][0]](ctx, children[1][1]);
+	qualifiedName = ctx._result.data;
+	ctx._result = new Fleur.Text();
+	ctx._result.schemaTypeInfo = Fleur.Type_QName;
+	ctx._result._setNodeNameLocalNamePrefix(namespaceURI, qualifiedName);
+};
+Fleur.XPathFunctions_xs["anyURI"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["base64Binary"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_base64Binary, /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["boolean"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_boolean, /^(true|false|0|1)$/, function(ctx) {
+		var node = ctx._result;
+		if (node.schemaTypeInfo === Fleur.Type_integer || node.schemaTypeInfo === Fleur.Type_decimal || node.schemaTypeInfo === Fleur.Type_float || node.schemaTypeInfo === Fleur.Type_double) {
+			node.data = (node.data === "0" || node.data === "NaN") ? "false" : "true";
+		} else {
+			Fleur.error(ctx, "FORG0001");
+		}
+	}, function(node) {
+		if (node.data === "0") {
+			node.data = "false";
+		} else if (node.data === "1") {
+			node.data = "true";
+		}
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["byte"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_byte, /^[\-+]?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value < -128 || value > 127;
+	});
+};
+Fleur.XPathFunctions_xs["date"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_date, /^([12][0-9]{3})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])(Z|[+\-]([01][0-9]|2[0-3]):[0-5][0-9])?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["dateTime"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_dateTime, /^([12][0-9]{3})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+\-]([01][0-9]|2[0-3]):[0-5][0-9])?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["dateTimeStamp"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["dayTimeDuration"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["decimal"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_decimal, /^[\-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["double"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_double, /^(([\-+]?([0-9]+(\.[0-9]*)?)|(\.[0-9]+))([eE][-+]?[0-9]+)?|-?INF|NaN)$/, function() {}, function(node) {
+		var value = parseFloat(node.data);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["duration"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_duration, /^-?P(?!$)([0-9]+Y)?([0-9]+M)?([0-9]+D)?(T(?!$)([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]+)?S)?)?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["float"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_float, /^(([\-+]?([0-9]+(\.[0-9]*)?)|(\.[0-9]+))([eE][\-+]?[0-9]+)?|-?INF|NaN)$/, function() {}, function(node) {
+		var value = parseFloat(node.data);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["gDay"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_gDay, /^---(0[1-9]|[12][0-9]|3[01])$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["gMonth"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_gMonth, /^--(0[1-9]|1[012])$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["gMonthDay"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_gMonthDay, /^--(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["gYear"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_gYear, /^([\-+]?([0-9]{4}|[1-9][0-9]{4,}))?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["gYearMonth"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_gYearMonth, /^([12][0-9]{3})-(0[1-9]|1[012])$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["hexBinary"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["int"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_int, /^[\-+]?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value < -2147483648 || value > 2147483647;
+	});
+};
+Fleur.XPathFunctions_xs["integer"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_integer, /^[\-+]?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["language"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["long"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_long, /^[\-+]?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value < -9223372036854775808 || value > 9223372036854775807;
+	});
+};
+Fleur.XPathFunctions_xs["negativeInteger"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_negativeInteger, /^-0*[1-9][0-9]*$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["nonNegativeInteger"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_nonNegativeInteger, /^\+?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["nonPositiveInteger"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_nonPositiveInteger, /^(-[0-9]+|0)$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["normalizedString"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["positiveInteger"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_positiveInteger, /^\+?0*[1-9][0-9]*$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["short"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_short, /^[\-+]?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value < -32768 || value > 32767;
+	});
+};
+Fleur.XPathFunctions_xs["string"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["time"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_time, /^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\.[0-9]+)?(Z|[+\-]([01][0-9]|2[0-3]):[0-5][0-9])?)?$/, function() {}, function() {
+		return false;
+	});
+};
+Fleur.XPathFunctions_xs["token"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["unsignedByte"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_unsignedByte, /^\+?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value > 255;
+	});
+};
+Fleur.XPathFunctions_xs["unsignedInt"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_unsignedInt, /^\+?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value > 4294967295;
+	});
+};
+Fleur.XPathFunctions_xs["unsignedLong"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_unsignedLong, /^\+?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value > 18446744073709551615;
+	});
+};
+Fleur.XPathFunctions_xs["unsignedShort"] = function(ctx, children) {
+	Fleur.XPathConstructor(ctx, children, Fleur.Type_unsignedShort, /^\+?[0-9]+$/, function() {}, function(node) {
+		var value = parseInt(node.data, 10);
+		node.data = "" + value;
+		return value > 65535;
+	});
+};
+Fleur.XPathFunctions_xs["untypedAtomic"] = function(ctx, children) {};
+Fleur.XPathFunctions_xs["yearMonthDuration"] = function(ctx, children) {};
+Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions"] = {};
+Fleur.XPathFunctions_fn = Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions"];
+Fleur.XPathFunctions_fn["QName"] = function(ctx, children) {
+	var namespaceURI, qualifiedName;
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	namespaceURI = ctx._result.data;
+	Fleur.XQueryEngine[children[1][0]](ctx, children[1][1]);
+	qualifiedName = ctx._result.data;
+	ctx._result = new Fleur.Text();
+	ctx._result.schemaTypeInfo = Fleur.Type_QName;
+	ctx._result._setNodeNameLocalNamePrefix(namespaceURI, qualifiedName);
+};
+Fleur.XPathFunctions_fn["abs"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.abs);
+};
+Fleur.XPathFunctions_fn["adjust-date-to-timezone"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["adjust-dateTime-to-timezone"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["adjust-time-to-timezone"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["analyze-string"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["apply"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["available-environment-variables"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["avg"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["base-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["boolean"] = function(ctx, children) {
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	if (ctx._result.schemaTypeInfo === Fleur.Type_error || ctx._result.schemaTypeInfo === Fleur.Type_boolean) {
+		return;
+	}
+	if (ctx._result.nodeType === Fleur.Node.SEQUENCE_NODE) {
+		ctx._result.data = ctx._result.childNodes.length === 0 ? "false" : "true";
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_string || ctx._result.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		ctx._result.data = (!ctx._result.data || !ctx._result.data.length === 0) ? "false" : "true";
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_integer || ctx._result.schemaTypeInfo === Fleur.Type_decimal || ctx._result.schemaTypeInfo === Fleur.Type_float || ctx._result.schemaTypeInfo === Fleur.Type_double) {
+		ctx._result.data = (ctx._result.data === "0" || ctx._result.data === "NaN") ? "false" : "true";
+	} else {
+			Fleur.error(ctx, "FORG0006");
+			return;
+	}
+	ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+};
+Fleur.XPathFunctions_fn["ceiling"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.ceil, Fleur.Type_integer);
+};
+Fleur.XPathFunctions_fn["codepoint-equal"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["codepoints-to-string"] = function(ctx, children) {
+	var s = "";
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	if (ctx._result.nodeType === Fleur.Node.SEQUENCE_NODE) {
+	} else {
+	}
+	ctx._result = new Fleur.Text();
+	ctx._result.schemaTypeInfo = Fleur.Type_string;
+	ctx._result.data = s;
+};
+Fleur.XPathFunctions_fn["collation-key"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["collection"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["compare"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["concat"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["contains"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["contains-token"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["count"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["current-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["current-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["current-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["data"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["day-from-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["day-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["days-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["deep-equal"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["default-collation"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["distinct-values"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["element-with-id"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["empty"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["encode-for-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["ends-with"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["environment-variable"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["error"] = function(ctx, children) {
+	if (children.length === 0) {
+		Fleur.error(ctx, "FOER0000");
+		return;
+	}
+	Fleur.XQueryEngine[children[0][0]](ctx, children[0][1]);
+	Fleur.Atomize(ctx);
+	if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
+		return;
+	}
+	if (ctx._result.schemaTypeInfo !== Fleur.Type_QName) {
+		Fleur.error(ctx, "XPTY0004");
+		return;
+	}
+	ctx._result.schemaTypeInfo = Fleur.Type_error;
+};
+Fleur.XPathFunctions_fn["escape-html-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["exactly-one"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["exists"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["false"] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	if (children.length !== 0) {
+		Fleur.error(ctx, "XPST0017");
+		return;
+	}
+	ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	ctx._result.data = "false";
+};
+Fleur.XPathFunctions_fn["filter"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["floor"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.floor, Fleur.Type_integer);
+};
+Fleur.XPathFunctions_fn["fold-left"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["fold-right"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["for-each"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["for-each-pair"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["format-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["format-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["format-integer"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["format-number"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["format-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["function-arity"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["function-lookup"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["function-name"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["generate-id"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["has-children"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["head"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["hours-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["hours-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["hours-from-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["id"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["idref"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["implicit-timezone"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["in-scope-prefixes"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["index-of"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["innermost"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["insert-before"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["iri-to-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["json-doc"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["lang"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["last"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["load-xquery-module"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["local-name"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["local-name-from-QName"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["lower-case"] = function(ctx, children) {
+	Fleur.XPathStringFunction(ctx, children, function(s) {return s.toLowerCase()});
+};
+Fleur.XPathFunctions_fn["matches"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["max"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["min"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["minutes-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["minutes-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["minutes-from-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["month-from-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["month-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["months-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["name"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["namespace-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["namespace-uri-for-prefix"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["namespace-uri-from-QName"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["nilled"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["node-name"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["normalize-space"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["normalize-unicode"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["not"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["number"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["one-or-more"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["outermost"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["parse-ietf-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["parse-json"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["parse-xml"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["parse-xml-fragment"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["path"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["position"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["prefix-from-QName"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["random-number-generator"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["remove"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["replace"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["resolve-QName"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["resolve-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["reverse"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["root"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["round"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.round, Fleur.Type_integer);
+};
+Fleur.XPathFunctions_fn["round-half-to-even"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["seconds-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["seconds-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["seconds-from-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["serialize"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["sort"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["starts-with"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["static-base-uri"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["string"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["string-join"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["string-length"] = function(ctx, children) {
+	Fleur.XPathStringFunction(ctx, children, function(s) {return s.length}, Fleur.Type_integer);
+};
+Fleur.XPathFunctions_fn["string-to-codepoints"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["subsequence"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["substring"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["substring-after"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["substring-before"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["sum"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["tail"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["timezone-from-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["timezone-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["timezone-from-time"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["tokenize"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["trace"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["transform"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["translate"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["true"] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	if (children.length !== 0) {
+		Fleur.error(ctx, "XPST0017");
+		return;
+	}
+	ctx._result.schemaTypeInfo = Fleur.Type_boolean;
+	ctx._result.data = "true";
+};
+Fleur.XPathFunctions_fn["unordered"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["unparsed-text"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["unparsed-text-available"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["unparsed-text-lines"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["upper-case"] = function(ctx, children) {
+	Fleur.XPathStringFunction(ctx, children, function(s) {return s.toUpperCase()});
+};
+Fleur.XPathFunctions_fn["uri-collection"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["year-from-date"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["year-from-dateTime"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["years-from-duration"] = function(ctx, children) {};
+Fleur.XPathFunctions_fn["zero-or-one"] = function(ctx, children) {};
+Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/array"] = {};
+Fleur.XPathFunctions_array = Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/array"];
+Fleur.XPathFunctions_array["append"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["filter"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["flatten"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["fold-left"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["fold-right"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["for-each"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["for-each-pair"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["get"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["head"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["insert-before"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["join"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["remove"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["reverse"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["size"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["sort"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["subarray"] = function(ctx, children) {};
+Fleur.XPathFunctions_array["tail"] = function(ctx, children) {};
+Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/map"] = {};
+Fleur.XPathFunctions_map = Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/map"];
+Fleur.XPathFunctions_map["contains"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["entry"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["for-each"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["get"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["keys"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["merge"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["put"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["remove"] = function(ctx, children) {};
+Fleur.XPathFunctions_map["size"] = function(ctx, children) {};
+Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/math"] = {};
+Fleur.XPathFunctions_math = Fleur.XPathFunctions["http://www.w3.org/2005/xpath-functions/math"];
+Fleur.XPathFunctions_math["acos"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.acos, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["asin"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.asin, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["atan"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.atan, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["atan2"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.atan2, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["cos"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.cos, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["exp"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.exp, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["exp10"] = function(ctx, children) {};
+Fleur.XPathFunctions_math["log"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.log, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["log10"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.log10, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["pi"] = function(ctx, children) {
+	ctx._result = new Fleur.Text();
+	if (children.length !== 0) {
+		Fleur.error(ctx, "XPST0017");
+		return;
+	}
+	ctx._result.schemaTypeInfo = Fleur.Type_double;
+	ctx._result.data = "3.141592653589793e0";	
+};
+Fleur.XPathFunctions_math["pow"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.pow, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["sin"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.sin, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["sqrt"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.sqrt, Fleur.Type_double);
+};
+Fleur.XPathFunctions_math["tan"] = function(ctx, children) {
+	Fleur.XPathNumberFunction(ctx, children, Math.tan, Fleur.Type_double);
+};
+
 Fleur.TypeInfo = function(typeNamespace, typeName, derivationMethod, derivationType) {
 	this.typeNamespace = typeNamespace;
 	this.typeName = typeName;
@@ -25,7 +725,7 @@ Fleur.TypeInfo.DERIVATION_EXTENSION = 2;
 Fleur.TypeInfo.DERIVATION_UNION = 4;
 Fleur.TypeInfo.DERIVATION_LIST = 8;
 Fleur.TypeInfo.prototype.isDerivedFrom = function(typeNamespaceArg, typeNameArg, derivationMethod) {
-	var propname, t = Fleur.Types[typeNamespaceArg][typeNameArg];
+	var propname, t, typeArg = Fleur.Types[typeNamespaceArg][typeNameArg];
 	switch (derivationMethod) {
 		case Fleur.TypeInfo.DERIVATION_RESTRICTION:
 			propname = "restriction";
@@ -82,6 +782,7 @@ new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "base64Binary");
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "anyURI");
 Fleur.Type_anyURI = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["anyURI"];
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "QName");
+Fleur.Type_QName = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["QName"];
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "NOTATION");
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "normalizedString", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Type_string);
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "token", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].normalizedString);
@@ -101,6 +802,7 @@ new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "nonPositiveInteger", Fle
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "negativeInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].nonPositiveInteger);
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "long", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].integer);
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "int", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].long);
+Fleur.Type_int = Fleur.Types["http://www.w3.org/2001/XMLSchema"]["int"];
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "short", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].int);
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "byte", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].short);
 new Fleur.TypeInfo("http://www.w3.org/2001/XMLSchema", "nonNegativeInteger", Fleur.TypeInfo.DERIVATION_RESTRICTION, Fleur.Types["http://www.w3.org/2001/XMLSchema"].integer);
@@ -368,8 +1070,11 @@ Fleur.DOMImplementation.prototype._Features = [
 	["core", "2.0"],
 	["core", "1.0"],
 	["xml", "3.0"],
+	["xml", "2.0"],
 	["xml", "1.0"],
-	["xml", "2.0"]
+	["xpath", "3.0"],
+	["xpath", "2.0"],
+	["xpath", "1.0"]
 ];
 Fleur.DOMImplementation.prototype.createDocument = function(namespaceURI, qualifiedName, doctype, mediatype) {
 	var doc = new Fleur.Document();
@@ -629,23 +1334,31 @@ Fleur.Node.prototype.appendChild = function(newChild) {
 		newChild.parentNode = this;
 		this.lastChild = newChild;
 		this.childNodes.push(newChild);
-		if (newChild.nodeType === Fleur.Node.ELEMENT_NODE) {
+		if (newChild.nodeType === Fleur.Node.ELEMENT_NODE || newChild.nodeType === Fleur.Node.SEQUENCE_NODE || newChild.nodeType === Fleur.Node.ARRAY_NODE || newChild.nodeType === Fleur.Node.MAP_NODE || newChild.nodeType === Fleur.Node.ENTRY_NODE) {
 			this.children.push(newChild);
 		}
 	}
 	return newChild;
+};
+Fleur.Node.prototype.clearUserData = function() {
+	this._userData = {};
 };
 Fleur.Node.prototype.cloneNode = function(deep) {
 	var i = 0, li = 0, j = 0, lj = 0, clone = null;
 	switch (this.nodeType) {
 		case Fleur.Node.TEXT_NODE:
 			clone = this.ownerDocument.createTextNode(this.data);
+			clone.schemaTypeInfo = this.schemaTypeInfo;
+			break;
+		case Fleur.Node.COMMENT_NODE:
+			clone = this.ownerDocument.createComment(this.data);
 			break;
 		case Fleur.Node.CDATA_NODE:
 			clone = this.ownerDocument.createCDATASection(this.data);
 			break;
 		case Fleur.Node.ATTRIBUTE_NODE:
 			clone = this.ownerDocument.createAttributeNS(this.namespaceURI, this.nodeName);
+			clone.schemaTypeInfo = this.schemaTypeInfo;
 			lj = this.childNodes.length;
 			while (j < lj) {
 				clone.appendChild(this.childNodes[j++].cloneNode(true));
@@ -660,6 +1373,7 @@ Fleur.Node.prototype.cloneNode = function(deep) {
 			break;
 		case Fleur.Node.ELEMENT_NODE:
 			clone = this.ownerDocument.createElementNS(this.namespaceURI, this.nodeName);
+			clone.schemaTypeInfo = this.schemaTypeInfo;
 			li = this.attributes.length;
 			while (i < li) {
 				clone.setAttributeNode(this.attributes[i++].cloneNode(false));
@@ -758,11 +1472,11 @@ Fleur.Node.prototype.hasChildNodes = function() {
 	return !!this.childNodes && this.childNodes.length !== 0;
 };
 Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
-	var i = 0, l = this.childNodes.length, n = refChild, ln;
+	var i = 0, j = 0, l = this.childNodes.length, n = refChild, ln;
 	if (newChild.nodeType === Fleur.Node.DOCUMENT_FRAGMENT_NODE) {
 		ln = newChild.childNodes.length;
 		while (i < ln) {
-			this.insertBefore(newChild.childNodes[0], refChild);
+			this.insertBefore(newChild.childNodes[i], refChild);
 			i++;
 		}
 		return newChild;
@@ -796,8 +1510,14 @@ Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
 						this.firstChild = newChild;
 					}
 					newChild.nextSibling = refChild;
+					if (newChild.nodeType === Fleur.Node.ELEMENT_NODE || newChild.nodeType === Fleur.Node.SEQUENCE_NODE || newChild.nodeType === Fleur.Node.ARRAY_NODE || newChild.nodeType === Fleur.Node.MAP_NODE || newChild.nodeType === Fleur.Node.ENTRY_NODE) {
+						this.children.splice(j, 0, newChild);
+					}
 					this.childNodes.splice(i, 0, newChild);
 					return newChild;
+				}
+				if (this.childNodes[i] === this.children[j]) {
+					j++;
 				}
 				i++;
 			}
@@ -813,6 +1533,9 @@ Fleur.Node.prototype.insertBefore = function(newChild, refChild) {
 				newChild.previousSibling = null;
 			}
 			newChild.nextSibling = null;
+			if (newChild.nodeType === Fleur.Node.ELEMENT_NODE || newChild.nodeType === Fleur.Node.SEQUENCE_NODE || newChild.nodeType === Fleur.Node.ARRAY_NODE || newChild.nodeType === Fleur.Node.MAP_NODE || newChild.nodeType === Fleur.Node.ENTRY_NODE) {
+				this.children.push(newChild);
+			}
 			this.childNodes.push(newChild);
 			this.lastChild = newChild;
 			return newChild;
@@ -882,7 +1605,7 @@ Fleur.Node.prototype.isSupported = function(feature, version) {
  return doc.implementation.hasFeature(feature, version);
 };
 Fleur.Node.prototype.lookupNamespaceURI = function(prefix) {
-	var pnode = this;
+	var namespaceURI, pnode = this;
 	if (prefix === null || prefix === '') {
 		return null;
 	}
@@ -891,7 +1614,10 @@ Fleur.Node.prototype.lookupNamespaceURI = function(prefix) {
 	}
 	while (pnode) {
 		if (pnode.nodeType === Fleur.Node.ELEMENT_NODE) {
-			//return this.prefix ? this.getAttribute("xmlns") === namespaceURI : this.namespaceURI === namespaceURI;
+			namespaceURI = pnode.getAttributeNS("http://www.w3.org/2000/xmlns/", prefix);
+			if (namespaceURI !== '') {
+				return namespaceURI;
+			}
 		}
 		pnode = pnode.parentNode || pnode.ownerElement;
 	}
@@ -917,10 +1643,13 @@ Fleur.Node.prototype.normalize = function() {
 	var i = 0;
 	while (i < this.childNodes.length) {
 		switch (this.childNodes[i].nodeType) {
+			case Fleur.Node.DOCUMENT_NODE:
 			case Fleur.Node.ATTRIBUTE_NODE:
 			case Fleur.Node.ELEMENT_NODE:
-			case Fleur.Node.ENTRY_NODE:
 			case Fleur.Node.SEQUENCE_NODE:
+			case Fleur.Node.ARRAY_NODE:
+			case Fleur.Node.MAP_NODE:
+			case Fleur.Node.ENTRY_NODE:
 				this.childNodes[i].normalize();
 				break;
 			case Fleur.Node.TEXT_NODE:
@@ -940,7 +1669,7 @@ Fleur.Node.prototype.normalize = function() {
 	}
 };
 Fleur.Node.prototype.removeChild = function(oldChild) {
-	var i = 0, l = this.childNodes.length;
+	var i = 0, j = 0, l = this.childNodes.length;
 	if (oldChild.parentNode !== this) {
 		throw new Fleur.DOMException(Fleur.DOMException.NOT_FOUND_ERR);
 	}
@@ -957,17 +1686,24 @@ Fleur.Node.prototype.removeChild = function(oldChild) {
 				this.lastChild = oldChild.previousSibling;
 			}
 			this.childNodes.splice(i, 1);
+			if (this.children[j] === oldChild) {
+				this.children.splice(j, 1);
+			}
 			oldChild.parentNode = null;
 			oldChild.previousSibling = null;
 			oldChild.nextSibling = null;
 			return oldChild;
 		}
+		if (this.childNodes[i] === this.children[j]) {
+			j++;
+		}
 		i++;
 	}
 };
 Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
-	var i = 0, l = this.childNodes.length, n = this;
-	if (this.nodeType === Fleur.Node.DOCUMENT_NODE && (oldChild.nodeType === Fleur.Node.ELEMENT_NODE || oldChild.nodeType === Fleur.Node.DOCUMENT_TYPE_NODE)) {
+	var i = 0, j = 0, l = this.childNodes.length, n = this;
+	//if (this.nodeType === Fleur.Node.DOCUMENT_NODE && (oldChild.nodeType === Fleur.Node.ELEMENT_NODE || oldChild.nodeType === Fleur.Node.DOCUMENT_TYPE_NODE)) {
+	if (this.nodeType === Fleur.Node.DOCUMENT_NODE && oldChild.nodeType === Fleur.Node.DOCUMENT_TYPE_NODE) {
 		throw new Fleur.DOMException(Fleur.DOMException.NOT_SUPPORTED_ERR);
 	}
 	if (newChild.nodeType === Fleur.Node.ATTRIBUTE_NODE) {
@@ -991,6 +1727,9 @@ Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 	while (i < l) {
 		if (this.childNodes[i] === oldChild) {
 			this.childNodes[i] = newChild;
+			if (this.childNodes[i].nodeType === Fleur.Node.ELEMENT_NODE || this.childNodes[i].nodeType === Fleur.Node.SEQUENCE_NODE || this.childNodes[i].nodeType === Fleur.Node.ARRAY_NODE || this.childNodes[i].nodeType === Fleur.Node.MAP_NODE || this.childNodes[i].nodeType === Fleur.Node.ENTRY_NODE) {
+				this.children[j] = newChild; //Incomplete
+			}
 			newChild.parentNode = this;
 			newChild.previousSibling = oldChild.previousSibling;
 			if (newChild.previousSibling) {
@@ -1009,12 +1748,19 @@ Fleur.Node.prototype.replaceChild = function(newChild, oldChild) {
 			oldChild.nextSibling = null;
 			return oldChild;
 		}
+		if (this.childNodes[i].nodeType === Fleur.Node.ELEMENT_NODE || this.childNodes[i].nodeType === Fleur.Node.SEQUENCE_NODE || this.childNodes[i].nodeType === Fleur.Node.ARRAY_NODE || this.childNodes[i].nodeType === Fleur.Node.MAP_NODE || this.childNodes[i].nodeType === Fleur.Node.ENTRY_NODE) {
+			j++;
+		}
 		i++;
 	}
 	return oldChild;
 };
 Fleur.Node.prototype.setUserData = function(key, data, handler) {
-	this._userData[key] = data;
+	if (data) {
+		this._userData[key] = data;
+	} else {
+		delete this._userData[key];
+	}
 };
 Fleur.Node.prototype._setOwnerDocument = function(document) {
 	if (this.ownerDocument) {
@@ -1936,13 +2682,13 @@ Fleur.Document.prototype.createDocumentFragment = function() {
 };
 Fleur.Document.prototype.createElement = function(tagName) {
 	var node = new Fleur.Element();
-	if (!Fleur.Node.QNameReg.test(tagName) && (this.mediatype === "text/xml" || this.mediatype === "application/xml")) {
-		if (Fleur.Node.QNameCharsReg.test(tagName)) {
-			throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
-		} else {
-			throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
-		}
-	}
+	//if (!Fleur.Node.QNameReg.test(tagName) && (this.mediatype === "text/xml" || this.mediatype === "application/xml")) {
+	//	if (Fleur.Node.QNameCharsReg.test(tagName)) {
+	//		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
+	//	} else {
+	//		throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
+	//	}
+	//}
 	node._setOwnerDocument(this);
 	node.nodeName = tagName;
 	node.namespaceURI = null;
@@ -1955,13 +2701,13 @@ Fleur.Document.prototype.createElement = function(tagName) {
 };
 Fleur.Document.prototype.createElementNS = function(namespaceURI, qualifiedName) {
 	var node = new Fleur.Element();
-	if (!Fleur.Node.QNameReg.test(qualifiedName)) {
-		if (Fleur.Node.QNameCharsReg.test(qualifiedName)) {
-			throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
-		} else {
-			throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
-		}
-	}
+	//if (!Fleur.Node.QNameReg.test(qualifiedName)) {
+	//	if (Fleur.Node.QNameCharsReg.test(qualifiedName)) {
+	//		throw new Fleur.DOMException(Fleur.DOMException.NAMESPACE_ERR);
+	//	} else {
+	//		throw new Fleur.DOMException(Fleur.DOMException.INVALID_CHARACTER_ERR);
+	//	}
+	//}
 	if ((namespaceURI === null && qualifiedName.indexOf(":") !== -1) ||
 		(qualifiedName.substr(0, 4) === "xml:" && namespaceURI !== "http://www.w3.org/XML/1998/namespace") ||
 		((qualifiedName === "xmlns" || qualifiedName.substr(0, 6) === "xmlns:") && namespaceURI !==  "http://www.w3.org/2000/xmlns/") ||
@@ -2069,6 +2815,7 @@ Fleur.Document.prototype.importNode = function(importedNode, deep) {
 	switch (importedNode.nodeType) {
 		case Fleur.Node.TEXT_NODE:
 			node = this.createTextNode(importedNode.data);
+			node.schemaTypeInfo = importedNode.schemaTypeInfo;
 			break;
 		case Fleur.Node.COMMENT_NODE:
 			node = this.createComment(importedNode.data);
@@ -2081,6 +2828,7 @@ Fleur.Document.prototype.importNode = function(importedNode, deep) {
 			break;
 		case Fleur.Node.ATTRIBUTE_NODE:
 			node = this.createAttributeNS(importedNode.namespaceURI, importedNode.nodeName);
+			node.schemaTypeInfo = importedNode.schemaTypeInfo;
 			lj = importedNode.childNodes.length;
 			while (j < lj) {
 				node.appendChild(this.importNode(importedNode.childNodes[j++], true));
@@ -2088,6 +2836,7 @@ Fleur.Document.prototype.importNode = function(importedNode, deep) {
 			break;
 		case Fleur.Node.ELEMENT_NODE:
 			node = this.createElementNS(importedNode.namespaceURI, importedNode.nodeName);
+			node.schemaTypeInfo = importedNode.schemaTypeInfo;
 			li = importedNode.attributes.length;
 			while (i < li) {
 				node.setAttributeNode(this.importNode(importedNode.attributes[i++], true));
@@ -2101,6 +2850,27 @@ Fleur.Document.prototype.importNode = function(importedNode, deep) {
 			break;
 		case Fleur.Node.SEQUENCE_NODE:
 			node = this.createSequence();
+			lj = importedNode.childNodes.length;
+			while (j < lj) {
+				node.appendChild(this.importNode(importedNode.childNodes[j++], true));
+			}
+			break;
+		case Fleur.Node.ARRAY_NODE:
+			node = this.createArray();
+			lj = importedNode.childNodes.length;
+			while (j < lj) {
+				node.appendChild(this.importNode(importedNode.childNodes[j++], true));
+			}
+			break;
+		case Fleur.Node.MAP_NODE:
+			node = this.createMap();
+			li = importedNode.entries.length;
+			while (i < li) {
+				node.setEntryNode(this.importNode(importedNode.entries[i++], true));
+			}
+			break;
+		case Fleur.Node.ENTRY_NODE:
+			node = this.createEntry(importedNode.nodeName);
 			lj = importedNode.childNodes.length;
 			while (j < lj) {
 				node.appendChild(this.importNode(importedNode.childNodes[j++], true));
@@ -2134,10 +2904,21 @@ Fleur.Document.prototype.compileXslt = function() {
 };
 Fleur.Document.prototype.evaluate = function(expression, contextNode, nsResolver, type, result) {
 	var compiled = eval(Fleur.XPathEvaluator._xp2js(expression, "", ""));
-	var ctx = {_curr: contextNode || this};
+	var ctx = {_curr: contextNode || this, nsresolver: nsResolver};
 	Fleur.XQueryEngine[compiled[0]](ctx, compiled[1]);
-	result = ctx._result;
-	return ctx._result;
+	if (!result) {
+		result = new Fleur.XPathResult(type);
+	}
+	result._result = ctx._result;
+	return result;
+}
+Fleur.Document.prototype.createExpression = function(expression, resolver) {
+	expression = expression || "";
+//	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"],[Fleur.XQueryX.schemaLocation,"http://www.w3.org/2005/XQueryX http://www.w3.org/2005/XQueryX/xqueryx.xsd"],[Fleur.XQueryX.xsi,"http://www.w3.org/2001/XMLSchema-instance"]]]';
+	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"]]]';
+};
+Fleur.Document.prototype.createNSResolver = function(node) {
+	return new Fleur.XPathNSResolver(node);
 }
 /*
 Fleur.Document.prototype.normalizeDocument = function() {
@@ -2149,8 +2930,98 @@ Fleur.Document.prototype.renameNode = function(n, namespaceURI, qualifiedName) {
 */
 Fleur.XsltStylesheet = function() {};
 Fleur.XsltStylesheet.prototype = new Array();
-Fleur.Node.prototype._appendFromCSVString = function(s, config) {
-	var index, offset = 0, end, doc = this.ownerDocument || this, eltnode, sep, head = config.header === "present", ignore;
+Fleur.DocumentType = function() {
+	this.nodeType = Fleur.Node.DOCUMENT_TYPE_NODE;
+	this.entities = new Fleur.NamedNodeMap();
+	this.entities.ownerNode = this;
+	this.notations = new Fleur.NamedNodeMap();
+	this.notations.ownerNode = this;
+};
+Fleur.DocumentType.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.DocumentType.prototype, {
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
+Fleur.DocumentType.prototype.createEntity = function(name) {
+	var node = new Fleur.Entity();
+	node.localName = node.nodeName = name;
+	return node;
+};
+Fleur.DocumentType.prototype.hasEntity = function(name) {
+	return !!this.entities.getNamedItem(name);
+};
+Fleur.DocumentType.prototype.setEntity = function(name, value) {
+	var entity;
+	if (this.hasEntity(name)) {
+		return;
+	}
+	entity = this.createEntity(name);
+	entity.nodeValue = Fleur.DocumentType.resolveEntities(this, value);
+	this.entities.setNamedItem(entity);
+};
+Fleur.DocumentType.prototype.getEntity = function(name) {
+	var i = 0, l = this.entities.length;
+	while (i < l) {
+		if (this.entities[i].nodeName === name) {
+			return this.entities[i].nodeValue;
+		}
+		i++;
+	}
+	return null;
+};
+Fleur.DocumentType.resolveEntities = function(doctype, s) {
+	var offset = 0, index, entityname, entityvalue = null;
+	while ((index = s.indexOf("&", offset)) !== -1) {
+		entityname = s.substring(index + 1, s.indexOf(";", index + 1));
+		switch (entityname) {
+			case "amp":
+				entityvalue = "&";
+				break;
+			case "lt":
+				entityvalue = "<";
+				break;
+			case "gt":
+				entityvalue = ">";
+				break;
+			default:
+				if (entityname.charAt(0) === "#") {
+					entityvalue = String.fromCharCode(parseInt(entityname.charAt(1).toLowerCase() === 'x' ? "0" + entityname.substr(1).toLowerCase() : entityname.substr(1)));
+				} else if (doctype) {
+					entityvalue = doctype.getEntity(entityname);
+				}
+		}
+		if (entityvalue) {
+			s = s.substr(0, index) + entityvalue + s.substr(index + entityname.length + 2);
+			offset = index + entityvalue.length + 1;
+		}
+	}
+	return s.split("\r\n").join("\n");
+};
+
+Fleur.DocumentFragment = function() {
+	Fleur.Node.apply(this);
+	this.nodeType = Fleur.Node.DOCUMENT_FRAGMENT_NODE;
+	this.nodeName = "#document-fragment";
+};
+Fleur.DocumentFragment.prototype = new Fleur.Node();
+Object.defineProperties(Fleur.DocumentFragment.prototype, {
+	nodeValue: {
+		set: function(value) {},
+		get: function() {
+			return null;
+		}
+	}
+});
+
+Fleur.Nodes = function() {};
+
+Fleur.DOMParser = function() {};
+Fleur.DOMParser._appendFromCSVString = function(node, s, config) {
+	var index, offset = 0, end, doc = node.ownerDocument || node, eltnode, sep, head = config.header === "present", ignore;
 	var headers = [];
 	var first = head;
 	var col = 0;
@@ -2181,11 +3052,11 @@ Fleur.Node.prototype._appendFromCSVString = function(s, config) {
 	if (key !== null) {
 		mapnode = doc.createMap();
 		currparent = new Fleur.Entry();
-		currparent._setOwnerDocument(this);
+		currparent._setOwnerDocument(node);
 		currparent.childNodes = new Fleur.NodeList();
 		currparent.children = new Fleur.NodeList();
 	} else {
-		currparent = doc.createSequence();
+		currparent = doc.createArray();
 	}
 	while (offset !== end) {
 		var v = "";
@@ -2216,7 +3087,7 @@ Fleur.Node.prototype._appendFromCSVString = function(s, config) {
 			if (col === key) {
 				eltnode = doc.createElement(headers[col]);
 				eltnode.appendChild(mapnode);
-				this.appendChild(eltnode);
+				node.appendChild(eltnode);
 			}
 		} else {
 			rowcat += v;
@@ -2239,12 +3110,12 @@ Fleur.Node.prototype._appendFromCSVString = function(s, config) {
 				if (key !== null) {
 					mapnode.setEntryNode(currparent);
 					currparent = new Fleur.Entry();
-					currparent._setOwnerDocument(this);
+					currparent._setOwnerDocument(node);
 					currparent.childNodes = new Fleur.NodeList();
 					currparent.children = new Fleur.NodeList();
 				} else {
-					this.appendChild(currparent);
-					currparent = doc.createSequence();
+					node.appendChild(currparent);
+					currparent = doc.createArray();
 				}
 			}
 			first = false;
@@ -2257,11 +3128,11 @@ Fleur.Node.prototype._appendFromCSVString = function(s, config) {
 		offset++;
 	}
 	if (key !== null && !head) {
-		this.appendChild(mapnode);
+		node.appendChild(mapnode);
 	}
 };
-Fleur.Node.prototype._appendFromXMLString = function(s) {
-	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = [], doc = this.ownerDocument || this, currnode = this, eltnode, attrnode, c,
+Fleur.DOMParser._appendFromXMLString = function(node, s) {
+	var index, offset = 0, end = s.length, name, attrname, attrvalue, attrs, parents = [], doc = node.ownerDocument || node, currnode = node, eltnode, attrnode, c,
 		seps_pi = " \t\n\r?", seps_dtd = " \t\n\r[>", seps_close = " \t\n\r>", seps_elt = " \t\n\r/>", seps_attr = " \t\n\r=", seps_value = " \t\n\r'\"", seps = " \t\n\r",
 		n, namespaces = {}, newnamespaces = {}, pindex, prefix, localName, dtdtype, dtdpublicid, dtdsystemid, entityvalue, notationvalue;
 	while (offset !== end) {
@@ -2611,7 +3482,7 @@ Fleur.Node.prototype._appendFromXMLString = function(s) {
 		}
 	}
 };
-Fleur.Node._parseTextAdvance = function(n, states, grammar, selection) {
+Fleur.DOMParser._parseTextAdvance = function(n, states, grammar, selection) {
 	for (var i = 0; i < states[n].length; i++) {
 		var state = states[n][i];
 		if (state[2] === state[1].length) {
@@ -2671,14 +3542,14 @@ Fleur.Node._parseTextAdvance = function(n, states, grammar, selection) {
 		}
 	}
 };
-Fleur.Node.prototype._appendFromGrammarString = function(s, grammar) {
+Fleur.DOMParser._appendFromGrammarString = function(node, s, grammar) {
 	var states = [[]];
 	var selection = [];
 	for (var i = 0, l = grammar[0][0].length; i < l; i++) {
 		selection[i] = grammar[0][0][i];
 		states[0][i] = [0, grammar[0][0][i], 0, 0, []];
 	}
-	Fleur.Node._parseTextAdvance(0, states, grammar[0], selection);
+	Fleur.DOMParser._parseTextAdvance(0, states, grammar[0], selection);
 	for (var j = 0; j < s.length; j++) {
 		states[j + 1] = [];
 		for (var k = 0; k < states[j].length; k++) {
@@ -2692,7 +3563,7 @@ Fleur.Node.prototype._appendFromGrammarString = function(s, grammar) {
 				}
 			}
 		}
-		Fleur.Node._parseTextAdvance(j + 1, states, grammar[0], []);
+		Fleur.DOMParser._parseTextAdvance(j + 1, states, grammar[0], []);
 		if (states[states.length - 1].length === 0) {
 			return "error";
 		}
@@ -2700,124 +3571,14 @@ Fleur.Node.prototype._appendFromGrammarString = function(s, grammar) {
 	var laststates = states[states.length - 1];
 	for (i = 0, l = laststates.length; i < l; i++) {
 		if (laststates[i][0] === 0 && laststates[i][1].length === laststates[i][2] && laststates[i][3] === 0) {
-			this._parseFromArray(grammar[1], [laststates[i][4][0]]);
+			Fleur.DOMParser._appendFromArray(node, grammar[1], [laststates[i][4][0]]);
 			break;
 		}
 	}
-	return this;
-};
-Fleur.Node.prototype.appendFromString = function(s, mediatype, grammar) {
-	var doc = this.ownerDocument || this, media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length;
-	while (i < l) {
-		param = paramreg.exec(media[i]);
-		config[param[1]] = param[2];
-		i++;
-	}
-	switch(media[0].replace(/^\s+|\s+$/gm,'')) {
-		case "text/csv":
-			this._appendFromCSVString(s, config);
-			break;
-		case "application/xml":
-		case "text/xml":
-			this._appendFromXMLString(s);
-			break;
-		default:
-			this._appendFromGrammarString(s, grammar);
-	}
-	return this;
-};
-Fleur.DocumentType = function() {
-	this.nodeType = Fleur.Node.DOCUMENT_TYPE_NODE;
-	this.entities = new Fleur.NamedNodeMap();
-	this.entities.ownerNode = this;
-	this.notations = new Fleur.NamedNodeMap();
-	this.notations.ownerNode = this;
-};
-Fleur.DocumentType.prototype = new Fleur.Node();
-Object.defineProperties(Fleur.DocumentType.prototype, {
-	nodeValue: {
-		set: function(value) {},
-		get: function() {
-			return null;
-		}
-	}
-});
-Fleur.DocumentType.prototype.createEntity = function(name) {
-	var node = new Fleur.Entity();
-	node.localName = node.nodeName = name;
 	return node;
 };
-Fleur.DocumentType.prototype.hasEntity = function(name) {
-	return !!this.entities.getNamedItem(name);
-};
-Fleur.DocumentType.prototype.setEntity = function(name, value) {
-	var entity;
-	if (this.hasEntity(name)) {
-		return;
-	}
-	entity = this.createEntity(name);
-	entity.nodeValue = Fleur.DocumentType.resolveEntities(this, value);
-	this.entities.setNamedItem(entity);
-};
-Fleur.DocumentType.prototype.getEntity = function(name) {
-	var i = 0, l = this.entities.length;
-	while (i < l) {
-		if (this.entities[i].nodeName === name) {
-			return this.entities[i].nodeValue;
-		}
-		i++;
-	}
-	return null;
-};
-Fleur.DocumentType.resolveEntities = function(doctype, s) {
-	var offset = 0, index, entityname, entityvalue = null;
-	while ((index = s.indexOf("&", offset)) !== -1) {
-		entityname = s.substring(index + 1, s.indexOf(";", index + 1));
-		switch (entityname) {
-			case "amp":
-				entityvalue = "&";
-				break;
-			case "lt":
-				entityvalue = "<";
-				break;
-			case "gt":
-				entityvalue = ">";
-				break;
-			default:
-				if (entityname.charAt(0) === "#") {
-					entityvalue = String.fromCharCode(parseInt(entityname.charAt(1).toLowerCase() === 'x' ? "0" + entityname.substr(1).toLowerCase() : entityname.substr(1)));
-				} else if (doctype) {
-					entityvalue = doctype.getEntity(entityname);
-				}
-		}
-		if (entityvalue) {
-			s = s.substr(0, index) + entityvalue + s.substr(index + entityname.length + 2);
-			offset = index + entityvalue.length + 1;
-		}
-	}
-	return s.split("\r\n").join("\n");
-};
-
-Fleur.DocumentFragment = function() {
-	Fleur.Node.apply(this);
-	this.nodeType = Fleur.Node.DOCUMENT_FRAGMENT_NODE;
-	this.nodeName = "#document-fragment";
-};
-Fleur.DocumentFragment.prototype = new Fleur.Node();
-Object.defineProperties(Fleur.DocumentFragment.prototype, {
-	nodeValue: {
-		set: function(value) {},
-		get: function() {
-			return null;
-		}
-	}
-});
-
-Fleur.Nodes = function() {};
-
-Fleur.DOMParser = function() {};
-Fleur.Node.prototype.appendFromArray = function(names, os) {
-	var i, l, o, n, name, doc = this.ownerDocument || this;
+Fleur.DOMParser._appendFromArray = function(node, names, os) {
+	var i, l, o, n, name, doc = node.ownerDocument || node;
 	for (i = 0, l = os.length; i < l; i++) {
 		o = os[i];
 		if (typeof o === "string") {
@@ -2827,12 +3588,12 @@ Fleur.Node.prototype.appendFromArray = function(names, os) {
 			switch (name[0]) {
 				case Fleur.Node.ELEMENT_NODE:
 					n = doc.createElementNS(names[0][name[1]], name[2]);
-					n.appendFromArray(names, o[1]);
+					Fleur.DOMParser._appendFromArray(n, names, o[1]);
 					break;
 				case Fleur.Node.ATTRIBUTE_NODE:
 					n = doc.createAttributeNS(names[0][name[1]], name[2]);
 					n.nodeValue = o[1][0];
-					this.setAttributeNodeNS(n);
+					node.setAttributeNodeNS(n);
 					continue;
 				case Fleur.Node.CDATA_NODE:
 					n = doc.createCDATASection(o[1][0]);
@@ -2845,21 +3606,21 @@ Fleur.Node.prototype.appendFromArray = function(names, os) {
 					break;
 			}
 		}
-		this.appendChild(n);
+		node.appendChild(n);
 	}
-	return this;
+	return node;
 };
 Fleur.DOMParser.prototype.parseFromArray = function(o) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	return doc.appendFromArray(o[0], o[1]);
+	return Fleur.DOMParser._appendFromArray(doc, o[0], o[1]);
 };
-Fleur.Node.prototype.appendFromJSON = function(o) {
+Fleur.DOMParser._appendFromJSON = function(node, o) {
 	if (o === null) {
 		return;
 	}
-	var doc = this.ownerDocument || this, n;
+	var doc = node.ownerDocument || node, n;
 	switch (typeof o) {
 		case "string":
 			n = doc.createTextNode(o);
@@ -2876,7 +3637,7 @@ Fleur.Node.prototype.appendFromJSON = function(o) {
 			} else if (typeof o.length === "number") {
 				n = doc.createArray();
 				for (var i = 0, l = o.length; i < l; i++) {
-					n._appendFromJSON(o[i]);
+					Fleur.DOMParser._appendFromJSON(n, o[i]);
 				}
 			} else {
 				n = doc.createMap();
@@ -2884,32 +3645,71 @@ Fleur.Node.prototype.appendFromJSON = function(o) {
 					if (o.hasOwnProperty(k)) {
 						var e = doc.createEntry(k);
 						n.setEntryNode(e);
-						e._appendFromJSON(o[k]);
+						Fleur.DOMParser._appendFromJSON(e, o[k]);
 					}
 				}
 			}
 	}
-	this.appendChild(n);
-	return this;
+	node.appendChild(n);
+	return node;
 };
 Fleur.DOMParser.prototype.parseFromJSON = function(o) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	return doc.appendFromJSON(o);
+	return Fleur.DOMParser._appendFromJSON(doc, o);
 };
+Fleur.DOMParser._appendFromString = function(node, s, mediatype, grammar) {
+	var doc = node.ownerDocument || node, media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length, handler;
+	while (i < l) {
+		param = paramreg.exec(media[i]);
+		config[param[1]] = param[2];
+		i++;
+	}
+	handler = Fleur.DOMParser.Handlers[media[0].replace(/^\s+|\s+$/gm,'')];
+	if (!handler) {
+		return;
+	}
+	handler(node, s, config, grammar);
+	return node;
+};
+Fleur.DOMParser.Handlers = {
+	"text/csv": function(node, s, config) {
+		Fleur.DOMParser._appendFromCSVString(node, s, config);
+	},
+	"application/xquery": function(node, s, config) {
+		Fleur.DOMParser.xpatharr = Fleur.XPathEvaluator._xp2js(s, "", "");
+		eval("Fleur.DOMParser.xpatharr = [Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[" + Fleur.DOMParser.xpatharr + ']]]],[Fleur.XQueryX.xqx,["http://www.w3.org/2005/XQueryX"]]]];');
+		Fleur.DOMParser._appendFromArray(node, Fleur.XQueryXNames, [Fleur.DOMParser.xpatharr]);
+		delete Fleur.DOMParser.xpatharr;
+	},
+	"application/json": function(node, s, config) {
+		eval("Fleur.DOMParser.json = " + s);
+		Fleur.DOMParser._appendFromJSON(node, Fleur.DOMParser.json);
+		delete Fleur.DOMParser.json;
+	},
+	"application/xml": function(node, s, config) {
+		Fleur.DOMParser._appendFromXMLString(node, s);
+	},
+	"text/plain":  function(node, s, config, grammar) {
+		Fleur.DOMParser._appendFromGrammarString(node, s, grammar);
+	}
+};
+Fleur.DOMParser.Handlers["text/xml"] = Fleur.DOMParser.Handlers["application/xml"];
+Fleur.DOMParser.Handlers["text/json"] = Fleur.DOMParser.Handlers["application/json"];
+
 Fleur.DOMParser.prototype.parseFromString = function(s, mediatype, grammar) {
 	var doc, impl, domSource = new Fleur.DOMImplementationSource();
 	impl = domSource.getDOMImplementation("XML");
 	doc = impl.createDocument();
-	return doc.appendFromString(s, mediatype, grammar);
+	return Fleur.DOMParser._appendFromString(doc, s, mediatype, grammar);
 };
 
 Fleur.Serializer = function() {};
 Fleur.Serializer.escapeXML = function(s) {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 };
-Fleur.Serializer.prototype._serializeXMLToString = function(node, indent, offset) {
+Fleur.Serializer._serializeXMLToString = function(node, indent, offset) {
 	var s, i, l;
 	switch (node.nodeType) {
 		case Fleur.Node.ELEMENT_NODE:
@@ -2933,7 +3733,7 @@ Fleur.Serializer.prototype._serializeXMLToString = function(node, indent, offset
 			}
 			s += indent && (node.childNodes[0].nodeType !== Fleur.Node.TEXT_NODE || node.childNodes[0].data.match(/^[ \t\n\r]*$/)) ? ">\n" : ">";
 			for (i = 0, l = node.childNodes.length; i < l; i++) {
-				s += this._serializeXMLToString(node.childNodes[i], indent, offset + "  ");
+				s += Fleur.Serializer._serializeXMLToString(node.childNodes[i], indent, offset + "  ");
 			}
 			return s + (indent && (node.childNodes[0].nodeType !== Fleur.Node.TEXT_NODE || node.childNodes[0].data.match(/^[ \t\n\r]*$/)) ? offset + "</" : "</") + node.nodeName + (indent ? ">\n" : ">");
 		case Fleur.Node.TEXT_NODE:
@@ -2950,9 +3750,82 @@ Fleur.Serializer.prototype._serializeXMLToString = function(node, indent, offset
 		case Fleur.Node.DOCUMENT_NODE:
 			s = '<?xml version="1.0" encoding="UTF-8"?>\r\n';
 			for (i = 0, l = node.childNodes.length; i < l; i++) {
-				s += this._serializeXMLToString(node.childNodes[i], indent, offset);
+				s += Fleur.Serializer._serializeXMLToString(node.childNodes[i], indent, offset);
 			}
 			return s;
+	}
+};
+Fleur.Serializer._serializeEXMLToString = function(node, indent, offset) {
+	var s, i, l, nodeName, isqname;
+	switch (node.nodeType) {
+		case Fleur.Node.ELEMENT_NODE:
+		case Fleur.Node.ENTRY_NODE:
+			isqname = node.nodeType === Fleur.Node.ELEMENT_NODE && Fleur.Node.QNameReg.test(node.nodeName);
+			nodeName = isqname ? node.nodeName : "exml:" + (node.nodeType === Fleur.Node.ELEMENT_NODE ? "element" : "entry");
+			s = (indent ? offset + "<" : "<") + nodeName;
+			if (!isqname) {
+				s += " name=\"" + Fleur.Serializer.escapeXML(node.nodeName).replace('"', "&quot;") + "\"";
+			}
+			if (node.attributes) {
+				if (indent) {
+					var names = [];
+					for (i = 0, l = node.attributes.length; i < l; i++) {
+						names.push(node.attributes[i].nodeName);
+					}
+					names.sort();
+					for (i = 0, l = names.length; i < l; i++) {
+						s += " " + names[i] + "=\"" + Fleur.Serializer.escapeXML(node.getAttribute(names[i])).replace('"', "&quot;") + "\"";
+					}
+				} else {
+					for (i = 0, l = node.attributes.length; i < l; i++) {
+						s += " " + node.attributes[i].nodeName + "=\"" + Fleur.Serializer.escapeXML(node.attributes[i].nodeValue).replace('"', "&quot;") + "\"";
+					}
+				}
+			}
+			if (node.childNodes.length === 0) {
+				return s + (indent ? "/>\n" : "/>");
+			}
+			s += indent ? ">\n" : ">";
+			for (i = 0, l = node.childNodes.length; i < l; i++) {
+				s += Fleur.Serializer._serializeEXMLToString(node.childNodes[i], indent, offset + "  ");
+			}
+			return s + (indent ? offset + "</" : "</") + nodeName + (indent ? ">\n" : ">");
+		case Fleur.Node.TEXT_NODE:
+			s = indent ? offset + '<exml:atom' : '<exml:atom';
+			return s +  ' type="Q{' + node.schemaTypeInfo.typeNamespace + '}' + node.schemaTypeInfo.typeName + '">' + Fleur.Serializer.escapeXML(node.data) + (indent ? "</exml:atom>\n" : "</exml:atom>");
+		case Fleur.Node.CDATA_NODE:
+			return (indent ? offset + "<![CDATA[" : "<![CDATA[") + node.data + (indent ? "]]>\n" : "]]>");
+		case Fleur.Node.PROCESSING_INSTRUCTION_NODE:
+			return (indent ? offset + "<?" : "<?") + node.nodeName + " " + node.nodeValue + (indent ? "?>\n" : "?>");
+		case Fleur.Node.COMMENT_NODE:
+			return (indent ? offset + "<!--" : "<!--") + node.data + (indent ? "-->\n" : "-->");
+		case Fleur.Node.DOCUMENT_NODE:
+			s = '<?xml version="1.0" encoding="UTF-8"?>\r\n';
+			s += '<exml:document xmlns:exml="http://www.agencexml.com/exml">' + (indent ? "\n" : "");
+			for (i = 0, l = node.childNodes.length; i < l; i++) {
+				s += Fleur.Serializer._serializeEXMLToString(node.childNodes[i], indent, "  ");
+			}
+			return  s + "</exml:document>";
+		case Fleur.Node.ARRAY_NODE:
+			s = indent ? offset + "<exml:array" : "<exml:array";
+			if (node.childNodes.length === 0) {
+				return s + (indent ? "/>\n" : "/>");
+			}
+			s += indent ? ">\n" : ">";
+			for (i = 0, l = node.childNodes.length; i < l; i++) {
+				s += Fleur.Serializer._serializeEXMLToString(node.childNodes[i], indent, offset + "  ");
+			}
+			return s + (indent ? offset + "</" : "</") + "exml:array" + (indent ? ">\n" : ">");
+		case Fleur.Node.MAP_NODE:
+			s = indent ? offset + "<exml:map" : "<exml:map";
+			if (node.entries.length === 0) {
+				return s + (indent ? "/>\n" : "/>");
+			}
+			s += indent ? ">\n" : ">";
+			for (i = 0, l = node.entries.length; i < l; i++) {
+				s += Fleur.Serializer._serializeEXMLToString(node.entries[i], indent, offset + "  ");
+			}
+			return s + (indent ? offset + "</exml:map>\n" : "</exml:map>");
 	}
 };
 Fleur.Serializer.escapeJSON = function(s) {
@@ -2962,7 +3835,7 @@ Fleur.Serializer.escapeJSON = function(s) {
 		return "";
 	}
 };
-Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offset, inline, comma) {
+Fleur.Serializer._serializeJSONToString = function(node, indent, offset, inline, comma) {
 	var s, i, l, quote;
 	switch (node.nodeType) {
 		case Fleur.Node.MAP_NODE:
@@ -2980,11 +3853,11 @@ Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offse
 				}
 				names.sort();
 				for (i = 0, l = names.length; i < l; i++) {
-					s += this._serializeJSONToString(node.getEntryNode(names[i]), indent, offset + "  ", false, (i === l - 1 ? "" : ","));
+					s += Fleur.Serializer._serializeJSONToString(node.getEntryNode(names[i]), indent, offset + "  ", false, (i === l - 1 ? "" : ","));
 				}
 			} else {
 				for (i = 0, l = node.entries.length; i < l; i++) {
-					s += this._serializeJSONToString(node.entries[i], indent, offset + "  ", false, (i === l - 1 ? "" : ","));
+					s += Fleur.Serializer._serializeJSONToString(node.entries[i], indent, offset + "  ", false, (i === l - 1 ? "" : ","));
 				}
 			}
 			return s + (indent ? offset + "}" + comma + "\n" : "}" + comma);
@@ -2994,7 +3867,7 @@ Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offse
 			} else {
 				s = (indent ? offset + '"' : '"') + Fleur.Serializer.escapeJSON(node.nodeName) + '":' + (indent ? " " : "");
 			}
-			s += this._serializeJSONToString(node.firstChild, indent, offset, true, comma);
+			s += Fleur.Serializer._serializeJSONToString(node.firstChild, indent, offset, true, comma);
 			return s;
 		case Fleur.Node.TEXT_NODE:
 			quote = node.schemaTypeInfo === Fleur.Type_string ? '"' : node.schemaTypeInfo === Fleur.Type_regex ? '/' : "";
@@ -3009,13 +3882,13 @@ Fleur.Serializer.prototype._serializeJSONToString = function(node, indent, offse
 				s += "\n";
 			}
 			for (i = 0, l = node.childNodes.length; i < l; i++) {
-				s += this._serializeJSONToString(node.childNodes[i], indent, offset + "  ", false, (i === l - 1 ? "" : ","));
+				s += Fleur.Serializer._serializeJSONToString(node.childNodes[i], indent, offset + "  ", false, (i === l - 1 ? "" : ","));
 			}
 			return s + (indent ? offset + "]" + comma + "\n" : "]" + comma);
 		case Fleur.Node.DOCUMENT_NODE:
 			s = "";
 			for (i = 0, l = node.childNodes.length; i < l; i++) {
-				s += this._serializeJSONToString(node.childNodes[i], indent, offset, false, "");
+				s += Fleur.Serializer._serializeJSONToString(node.childNodes[i], indent, offset, false, "");
 			}
 			return s;
 	}
@@ -3027,22 +3900,23 @@ Fleur.Serializer.escapeCSV = function(s, sep) {
 		return s;
 	}
 };
-Fleur.Serializer.prototype._serializeCSVToString = function(node, head, key, sep, level) {
+Fleur.Serializer._serializeCSVToString = function(node, head, key, sep, level) {
 	var s = "", s2, s3, names, i, l, rowname, nextlevel = level, headref;
 	switch (node.nodeType) {
 		case Fleur.Node.ELEMENT_NODE:
+		case Fleur.Node.ARRAY_NODE:
 		case Fleur.Node.DOCUMENT_NODE:
-			if (node.children.length === 0) {
+			if (node.childNodes.length === 0) {
 				nextlevel = 2;
-			} else if (node.nodeType === Fleur.Node.ELEMENT_NODE) {
+			} else if (node.nodeType !== Fleur.Node.DOCUMENT_NODE || node.childNodes[0].nodeType === Fleur.Node.ARRAY_NODE) {
 				nextlevel = level + 1;
 			}
-			if (node.children.length > 1) {
-				l = node.children.length;
+			if (node.childNodes.length > 1 && nextlevel < 2) {
+				l = node.childNodes.length;
 				i = 1;
-				rowname = node.children[0].nodeName;
+				rowname = node.childNodes[0].nodeName;
 				while (i < l) {
-					if (rowname !== node.children[i].nodeName) {
+					if (rowname !== node.childNodes[i].nodeName) {
 						nextlevel++;
 						break;
 					}
@@ -3050,19 +3924,42 @@ Fleur.Serializer.prototype._serializeCSVToString = function(node, head, key, sep
 				}
 			}
 			if (head && level === 0 && nextlevel !== 0) {
-				if (node.children.length !== 0) {
-					headref = nextlevel === level + 1 ? node.children[0] : node;
-					l = headref.children.length;
+				if (key !== null) {
+					headref = node.childNodes[0].entries[0];
+					l = headref.childNodes.length;
 					i = 0;
 					while (i < l) {
 						if (s !== "") {
 							s += sep;
 						}
-						s += headref.children[i].nodeName;
+						if (i === key) {
+							s += node.nodeName + sep;
+						}
+						s += headref.childNodes[i].nodeName;
 						i++;
 					}
+					if (l === key) {
+						if (s !== "") {
+							s += sep;
+						}
+						s += node.nodeName;
+					}
+					head = false;
 				} else {
-					s  = node.nodeName;
+					if (node.childNodes.length !== 0) {
+						headref = nextlevel === level + 1 ? node.childNodes[0] : node;
+						l = headref.childNodes.length;
+						i = 0;
+						while (i < l) {
+							if (s !== "") {
+								s += sep;
+							}
+							s += headref.childNodes[i].nodeName;
+							i++;
+						}
+					} else {
+						s  = node.nodeName;
+					}
 				}
 				s += "\n";
 			}
@@ -3070,20 +3967,47 @@ Fleur.Serializer.prototype._serializeCSVToString = function(node, head, key, sep
 			i = 0;
 			s3 = "";
 			while (i < l) {
-				s2 = this._serializeCSVToString(node.childNodes[i], head, key, sep, nextlevel);
+				s2 = Fleur.Serializer._serializeCSVToString(node.childNodes[i], key ? head : level === 0, key, sep, nextlevel);
 				if (s2) {
 					if (s3 !== "") {
-						s3 += nextlevel === 1 ? "\n" : nextlevel - level === 2 ? sep : "";
+						s3 += nextlevel === 1 ? "\n" : ((nextlevel - level === 2 || node.nodeType === Fleur.Node.ARRAY_NODE) ? sep : "");
 					}
 					s3 += s2;
 				}
 				i++;
 			}
 			return s + s3;
-		case Fleur.Node.ARRAY_NODE:
 		case Fleur.Node.SEQUENCE_NODE:
-		case Fleur.Node.MAP_NODE:
 			return null;
+		case Fleur.Node.MAP_NODE:
+			l = node.entries.length;
+			i = 0;
+			while (i < l) {
+				s += Fleur.Serializer._serializeCSVToString(node.entries[i], false, key, sep, nextlevel) + "\n";
+				i++;
+			}
+			return s;
+		case Fleur.Node.ENTRY_NODE:
+			l = node.childNodes.length;
+			i = 0;
+			s3 = "";
+			while (i < l) {
+				if (i === key) {
+					if (s3 !== "") {
+						s3 += sep;
+					}
+					s3 += Fleur.Serializer.escapeCSV(node.nodeName);
+				}
+				s2 = Fleur.Serializer._serializeCSVToString(node.childNodes[i], false, key, sep, nextlevel);
+				if (s2) {
+					if (s3 !== "") {
+						s3 += sep;
+					}
+					s3 += s2;
+				}
+				i++;
+			}
+			return s + s3;
 		case Fleur.Node.TEXT_NODE:
 			if (head && level !== 2) {
 				s = (node.parentNode ? Fleur.Serializer.escapeCSV(node.nodeName) : "#text") + "\n";
@@ -3094,33 +4018,1312 @@ Fleur.Serializer.prototype._serializeCSVToString = function(node, head, key, sep
 			return null;
 	}
 }
+Fleur.Serializer.XQX_delimitedList = function(node, delimiter, leftEncloser, rightEncloser, selector) {
+	var s = leftEncloser, i = 0, l = node.childNodes.length;
+	while (i < l) {
+		Fleur.Serializer._serializeXQXToString(node.childNodes[i]);
+		i++;
+		if (i !== l) {
+			s += delimiter;
+		}
+	}
+	return s + rightEncloser;
+};
+Fleur.Serializer.XQX_parenthesizedList = function(node, delimiter) {
+	delimiter = delimiter || ", ";
+	return Fleur.Serializer.XQX_delimitedList(node, delimiter, "(", ")");
+};
+Fleur.Serializer.XQX_commaSeparatedList = function(node) {
+	return Fleur.Serializer.XQX_delimitedList(node, ", ");
+};
+Fleur.Serializer.XQX_quote = function(item) {
+	return '"' + item.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\x85/g, "&amp;#x85;").replace(/\x2028/g, "&#x2028;").replace (/\"/g, '""') + '"';
+};
+Fleur.Serializer.XQX_renderQName = function(node) {
+	return (node.hasAttributeNS("http://www.w3.org/2005/XQueryX", "prefix") ? node.getAttributeNS("http://www.w3.org/2005/XQueryX", "prefix") + ":" : "") + node.textContent;
+};
+Fleur.Serializer.XQX_renderEQName = function(node) {
+	if (node.localName === "elementConstructor" && node.namespaceURI === "http://www.w3.org/2005/XQueryX") {
+		var i = 0, l = node.children.length;
+		while (i < l) {
+			if (node.children[i].localName === "tagName" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+				return Fleur.Serializer.XQX_renderQName(node.children[i]);
+			}
+			i++;
+		}
+	}
+	if (node.hasAttributeNS("http://www.w3.org/2005/XQueryX", "prefix")) {
+		return node.getAttributeNS("http://www.w3.org/2005/XQueryX", "prefix") + ":" + node.textContent;
+	}
+	if (node.hasAttributeNS("http://www.w3.org/2005/XQueryX", "URI")) {
+		return "Q{" + node.getAttributeNS("http://www.w3.org/2005/XQueryX", "URI") + "}" + node.textContent;
+	}
+	return node.textContent;
+};
+Fleur.Serializer.XQX_renderChildren = function(node, filter) {
+	var i = 0, l, s = "";
+	l = node.children.length;
+	while (i < l) {
+		if (!filter || (filter.indexOf(node.children[i].localName) !== -1 && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX")) {
+			s += Fleur.Serializer._serializeXQXToString(node.children[i]);
+		}
+		i++;
+	}
+	return s;
+};
+Fleur.Serializer.XQX_ops = {
+	"unaryMinusOp": "-",
+	"unaryPlusOp": "+",
+	"addOp": "+",
+	"subtractOp": " - ",
+	"multiplyOp": "*",
+	"divOp": " div ",
+	"idivOp": " idiv ",
+	"modOp": " mod ",
+	"stringConcatenateOp": "||",
+	"eqOp": " eq ",
+	"neOp": " ne ",
+	"ltOp": " lt ",
+	"gtOp": " gt ",
+	"leOp": " le ",
+	"geOp": " ge ",
+	"equalOp": " = ",
+	"notEqualOp": " != ",
+	"lessThanOp": " < ",
+	"greaterThanOp": " > ",
+	"lessThanOrEqualOp": " <= ",
+	"greaterThanOrEqualOp": " >= ",
+	"isOp": " is ",
+	"nodeBeforeOp": " << ",
+	"nodeAfterOp": " >> ",
+	"andOp": " and ",
+	"orOp": " or ",
+	"unionOp": " union ",
+	"intersectOp": " intersect ",
+	"exceptOp": " except "
+};
+Fleur.Serializer._serializeXQXToString = function(node) {
+	var i = 0, l, s, n;
+	if (node.nodeType === Fleur.Node.DOCUMENT_NODE) {
+		return Fleur.Serializer._serializeXQXToString(node.documentElement);
+	}
+	if (node.namespaceURI !== "http://www.w3.org/2005/XQueryX") {
+		return;
+	}
+	switch(node.localName) {
+		case "attributeName":
+			return Fleur.Serializer.XQX_renderQName(node);
+		case "NCName":
+			return node.textContent;
+		case "rootExpr":
+			return "/";
+		case "argumentPlaceholder":
+			return "?";
+		//case "xqx:pathExpr/xqx:rootExpr":
+		case "contextItemExpr":
+			return ".";
+		case "stringConstantExpr":
+		case "stringLiteral":
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "value" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					return Fleur.Serializer.XQX_quote(node.children[i].textContent);
+				}
+				i++;
+			}
+			return "";
+		case "integerConstantExpr":
+		case "integerLiteral":
+		case "decimalConstantExpr":
+		case "doubleConstantExpr":
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "value" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					return node.children[i].textContent;
+				}
+				i++;
+			}
+			return "";
+		case "varRef":
+		case "variableRef":
+			return "$" + Fleur.Serializer.XQX_renderChildren(node, ["name"]);
+		case "pragma":
+			return "(# " + Fleur.Serializer.XQX_renderChildren(node, ["pragmaName"]) + " " + Fleur.Serializer.XQX_renderChildren(node, ["pragmaContents"]) + " #)";
+		case "extensionExpr":
+			return Fleur.Serializer.XQX_renderChildren(node, ["pragma"]) + "{" + Fleur.Serializer.XQX_renderChildren(node, ["argExpr"]) + "}";
+		case "simpleMapExpr":
+			l = node.children.length;
+			s = "";
+			while (i < l) {
+				if (node.children[i].localName === "pathExpr" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += (s === "" ? "( " : "\n! ( ") + Fleur.Serializer._serializeXQXToString(node.children[i]) + " )";
+				}
+				i++;
+			}
+			return s;
+		case "functionCallExpr":
+			l = node.children.length;
+			s = "";
+			while (i < l) {
+				if (node.children[i].localName === "arguments" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += Fleur.Serializer.XQX_parenthesizedList(node.children[i]) ;
+				}
+				i++;
+			}
+			return Fleur.Serializer.XQX_renderChildren(node, ["functionName"]) + (s === "" ? "()" : s);
+		case "constructorFunctionExpr":
+			l = node.children.length;
+			s = "";
+			while (i < l) {
+				if (node.children[i].localName === "argExpr" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += Fleur.Serializer.XQX_parenthesizedList(node.children[i]) ;
+				}
+				i++;
+			}
+			return Fleur.Serializer.XQX_renderChildren(node, ["typeName"]) + (s === "" ? "()" : s);
+		case "unaryMinusOp":
+		case "unaryPlusOp":
+			return "(" + Fleur.Serializer.XQX_ops[node.localName] + Fleur.Serializer.XQX_renderChildren(node, ["operand"]) + ")";
+		case "addOp":
+		case "subtractOp":
+		case "multiplyOp":
+		case "divOp":
+		case "idivOp":
+		case "modOp":
+		case "stringConcatenateOp":
+		case "eqOp":
+		case "neOp":
+		case "ltOp":
+		case "gtOp":
+		case "leOp":
+		case "geOp":
+		case "equalOp":
+		case "notEqualOp":
+		case "lessThanOp":
+		case "greaterThanOp":
+		case "lessThanOrEqualOp":
+		case "greaterThanOrEqualOp":
+		case "isOp":
+		case "nodeBeforeOp":
+		case "nodeAfterOp":
+		case "andOp":
+		case "orOp":
+		case "unionOp":
+		case "intersectOp":
+		case "exceptOp":
+			return "(" + Fleur.Serializer.XQX_renderChildren(node, ["firstOperand"]) + Fleur.Serializer.XQX_ops[node.localName] + Fleur.Serializer.XQX_renderChildren(node, ["secondOperand"]) + ")";
+		case "sequenceExpr":
+			return Fleur.Serializer.XQX_parenthesizedList(node, ",\n");
+		case "firstOperand":
+		case "secondOperand":
+			return Fleur.Serializer.XQX_renderChildren(node);
+		case "rangeSequenceExpr":
+			return "(" + Fleur.Serializer.XQX_renderChildren(node, ["startExpr"]) + " to " + Fleur.Serializer.XQX_renderChildren(node, ["endExpr"]) + ")";
+		case "forClause":
+			return " for " + Fleur.Serializer.XQX_commaSeparatedList(node) + "\n";
+		case "forClauseItem":
+		case "letClauseItem":
+			s = "";
+			l = node.children.length;
+			while (i < l) {
+				s += Fleur.Serializer._serializeXQXToString(node.children[i]);
+				i++;
+			}
+			return s;
+		case "allowingEmpty":
+			return " allowing empty ";
+		case "forExpr":
+			return "\n    in " + Fleur.Serializer.XQX_renderChildren(node);
+		case "letClause":
+			return " let " + Fleur.Serializer.XQX_commaSeparatedList(node) + "\n";
+		case "letExpr":
+			return " := " + Fleur.Serializer.XQX_renderChildren(node);
+		case "windowClause":
+			return " for " + Fleur.Serializer.XQX_renderChildren(node) + "\n";
+			/*
+		case "tumblingWindowClause":
+    <xsl:text>   tumbling window </xsl:text>
+    <xsl:apply-templates select="xqx:typedVariableBinding"/>
+    <xsl:text> in </xsl:text>
+    <xsl:apply-templates select="xqx:bindingSequence"/>
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>      </xsl:text>
+    <xsl:apply-templates select="xqx:windowStartCondition"/>
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>      </xsl:text>
+    <xsl:apply-templates select="xqx:windowEndCondition"/>
+  </xsl:template>
+		case "slidingWindowClause":
+    <xsl:text>   sliding window </xsl:text>
+    <xsl:apply-templates select="xqx:typedVariableBinding"/>
+    <xsl:text> in </xsl:text>
+    <xsl:apply-templates select="xqx:bindingSequence"/>
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>      </xsl:text>
+    <xsl:apply-templates select="xqx:windowStartCondition"/>
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>      </xsl:text>
+    <xsl:apply-templates select="xqx:windowEndCondition"/>
+  </xsl:template>
+  */
+		case "bindingSequence":
+			return Fleur.Serializer.XQX_renderChildren(node);
+/*
+		case "windowStartCondition":
+    <xsl:text>start </xsl:text>
+    <xsl:apply-templates select="xqx:windowVars"/>
+    <xsl:text> when </xsl:text>
+    <xsl:apply-templates select="xqx:winStartExpr"/>
+  </xsl:template>
+		case "windowEndCondition":
+    <xsl:if test="@xqx:onlyEnd='true'">
+      <xsl:text>only </xsl:text>
+    </xsl:if>
+    <xsl:text>end </xsl:text>
+    <xsl:apply-templates select="xqx:windowVars"/>
+    <xsl:text> when </xsl:text>
+    <xsl:apply-templates select="xqx:winEndExpr"/>
+  </xsl:template>
+		case "windowVars":
+    <xsl:apply-templates select="xqx:currentItem"/>
+    <xsl:apply-templates select="xqx:positionalVariableBinding"/>
+    <xsl:apply-templates select="xqx:previousItem"/>
+    <xsl:apply-templates select="xqx:nextItem"/>
+  </xsl:template>
+		case "currentItem":
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:call-template name="renderEQName"/>
+  </xsl:template>
+		case "previousItem":
+    <xsl:text> previous </xsl:text>
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:call-template name="renderEQName"/>
+  </xsl:template>
+		case "nextItem":
+    <xsl:text> next </xsl:text>
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:call-template name="renderEQName"/>
+  </xsl:template>
+		case "countClause":
+    <xsl:text> count </xsl:text>
+    <xsl:apply-templates/>
+    <xsl:value-of select="$NEWLINE"/>
+  </xsl:template>
+		case "whereClause":
+    <xsl:text> where </xsl:text>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$NEWLINE"/>
+  </xsl:template>
+		case "groupByClause":
+    <xsl:text>  group by </xsl:text>
+    <xsl:call-template name="commaSeparatedList"/>
+    <xsl:value-of select="$NEWLINE"/>
+  </xsl:template>
+		case "groupingSpec":
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:apply-templates/>
+  </xsl:template>
+		case "groupVarInitialize":
+    <xsl:if test="xqx:typeDeclaration">
+      <xsl:apply-templates select="xqx:typeDeclaration"/>
+    </xsl:if>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$ASSIGN"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates select="xqx:varValue"/>
+  </xsl:template>
+		case "collation":
+    <xsl:text> collation </xsl:text>
+    <xsl:call-template name="quote">
+      <xsl:with-param name="item">
+        <xsl:value-of select="."/>
+      </xsl:with-param>
+    </xsl:call-template>
+  </xsl:template>
+  */
+		case "emptyOrderingMode":
+		case "orderingKind":
+			return " " + node.textContent;
+		case "orderModifier":
+			return Fleur.Serializer.XQX_renderChildren(node);
+  /*
+		case "orderBySpec":
+    <xsl:apply-templates select="xqx:orderByExpr"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates select="xqx:orderModifier"/>
+  </xsl:template>
+		case "orderByClause":
+    <xsl:if test="xqx:stable">
+      <xsl:text> stable</xsl:text>
+    </xsl:if>
+    <xsl:text> order by </xsl:text>
+    <xsl:apply-templates select="xqx:orderBySpec[1]"/>
+    <xsl:for-each select="xqx:orderBySpec[position() > 1]">
+      <xsl:value-of select="$COMMA_SPACE"/>
+      <xsl:apply-templates select="."/>
+    </xsl:for-each>
+    <xsl:value-of select="$NEWLINE"/>
+  </xsl:template>
+  */
+		case "returnClause":
+			return " return " + Fleur.Serializer.XQX_renderChildren(node) + "\n";
+		case "flworExpr":
+			return "\n(" + Fleur.Serializer.XQX_renderChildren(node) + ")";
+		case "ifThenElseExpr":
+			return "( if (" + Fleur.Serializer.XQX_renderChildren(node, ["ifClause"]) + ") then " + Fleur.Serializer.XQX_renderChildren(node, ["thenClause"]) + " else " + Fleur.Serializer.XQX_renderChildren(node, ["elseClause"]) + ")";
+/*
+			case "positionalVariableBinding":
+    <xsl:text> at </xsl:text>
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:call-template name="renderEQName"/>
+  </xsl:template>
+		case "variableBinding":
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:call-template name="renderEQName"/>
+    <xsl:if test="parent::xqx:typeswitchExprCaseClause">
+      <xsl:text> as </xsl:text>
+    </xsl:if>
+  </xsl:template>
+		case "typedVariableBinding" name="typedVariableBinding":
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:apply-templates select="xqx:varName"/>
+    <xsl:apply-templates select="xqx:typeDeclaration"/>
+  </xsl:template>
+		case "quantifiedExprInClause":
+    <xsl:apply-templates select="xqx:typedVariableBinding"/>
+    <xsl:text> in </xsl:text>
+    <xsl:apply-templates select="xqx:sourceExpr"/>
+  </xsl:template>
+		case "quantifiedExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:value-of select="xqx:quantifier"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates select="xqx:quantifiedExprInClause[1]"/>
+    <xsl:for-each select="xqx:quantifiedExprInClause[position() > 1]">
+      <xsl:value-of select="$COMMA_SPACE"/>
+      <xsl:apply-templates select="."/>
+    </xsl:for-each>
+    <xsl:text> satisfies </xsl:text>
+    <xsl:apply-templates select="xqx:predicateExpr"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "instanceOfExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:text> instance of </xsl:text>
+    <xsl:apply-templates select="xqx:sequenceType"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "castExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:text> cast as </xsl:text>
+    <xsl:apply-templates select="xqx:singleType"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "castableExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:text> castable as </xsl:text>
+    <xsl:apply-templates select="xqx:singleType"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "treatExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:text> treat as </xsl:text>
+    <xsl:apply-templates select="xqx:sequenceType"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "switchExprCaseClause":
+    <xsl:for-each select="xqx:switchCaseExpr">
+      <xsl:value-of select="$NEWLINE"/>
+      <xsl:text>   case (</xsl:text>
+      <xsl:apply-templates select="."/>
+      <xsl:text>) </xsl:text>
+    </xsl:for-each>
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>     return </xsl:text>
+    <xsl:apply-templates select="xqx:resultExpr"/>
+  </xsl:template>
+		case "switchExprDefaultClause":
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>   default return </xsl:text>
+    <xsl:apply-templates select="xqx:resultExpr"/>
+  </xsl:template>
+		case "switchExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:text>switch</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:value-of select="$RPAREN"/>
+    <xsl:apply-templates select="xqx:switchExprCaseClause"/>
+    <xsl:apply-templates select="xqx:switchExprDefaultClause"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "typeswitchExprCaseClause":
+    <xsl:text> case </xsl:text>
+    <xsl:apply-templates select="xqx:variableBinding"/>
+    <xsl:apply-templates select="xqx:sequenceType | xqx:sequenceTypeUnion"/>
+    <xsl:text> return </xsl:text>
+    <xsl:apply-templates select="xqx:resultExpr"/>
+  </xsl:template>
+		case "typeswitchExprDefaultClause":
+    <xsl:text> default </xsl:text>
+    <xsl:apply-templates select="xqx:variableBinding"/>
+    <xsl:text> return </xsl:text>
+    <xsl:apply-templates select="xqx:resultExpr"/>
+  </xsl:template>
+		case "typeswitchExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:text>typeswitch</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:value-of select="$RPAREN"/>
+    <xsl:apply-templates select="xqx:typeswitchExprCaseClause"/>
+    <xsl:apply-templates select="xqx:typeswitchExprDefaultClause"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "tryCatchExpr":
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:text>try </xsl:text>
+    <xsl:apply-templates select="xqx:tryClause"/>
+    <xsl:apply-templates select="xqx:catchClause"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "tryClause":
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "catchClause":
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:text>  catch </xsl:text>
+    <xsl:apply-templates select="xqx:catchErrorList"/>
+    <xsl:apply-templates select="xqx:catchExpr"/>
+  </xsl:template>
+		case "catchErrorList":
+    <xsl:for-each select="xqx:nameTest | xqx:Wildcard">
+      <xsl:if test="(position() mod 5) = 0">
+        <xsl:value-of select="$NEWLINE"/>
+        <xsl:text>      </xsl:text>
+      </xsl:if>
+      <xsl:if test="position() > 1">
+        <xsl:text>| </xsl:text>
+      </xsl:if>
+      <xsl:apply-templates select="."/>
+      <xsl:value-of select="$SPACE"/>
+    </xsl:for-each>
+  </xsl:template>
+		case "catchExpr":
+    <xsl:value-of select="$NEWLINE"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "validateExpr":
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:text> validate </xsl:text>
+    <xsl:if test="xqx:validationMode">
+      <xsl:value-of select="xqx:validationMode"/>
+      <xsl:value-of select="$SPACE"/>
+    </xsl:if>
+    <xsl:if test="xqx:typeName">
+      <xsl:text>type </xsl:text>
+      <xsl:apply-templates select="xqx:typeName"/>
+      <xsl:value-of select="$SPACE"/>
+    </xsl:if>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="xqx:argExpr"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+  */
+		case "xpathAxis":
+			return node.textContent + "::";
+		case "predicates":
+			s = "";
+			l = node.children.length;
+			while (i < l) {
+				s += "[" + Fleur.Serializer._serializeXQXToString(node.children[i]) + "]";
+				i++;
+			}
+			return s;
+		case "predicate":
+			return "[" + Fleur.Serializer.XQX_renderChildren(node) + "]";
+			/*
+		case "dynamicFunctionInvocationExpr":
+    <xsl:apply-templates select="xqx:functionItem"/>
+    <xsl:apply-templates select="xqx:predicates"/>
+    <xsl:choose>
+      <xsl:when test="xqx:arguments">
+        <xsl:for-each select="xqx:arguments">
+          <xsl:call-template name="parenthesizedList"/>
+        </xsl:for-each>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$LPAREN"/>
+        <xsl:value-of select="$RPAREN"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+		case "functionItem":
+			return Fleur.Serializer.XQX_renderChildren(node);
+		case "mapConstructor":
+     <xsl:text>map { </xsl:text>
+     <xsl:apply-templates select="xqx:mapConstructorEntry[1]"/>
+     <xsl:if test="xqx:mapConstructorEntry[2]">
+       <xsl:for-each select="xqx:mapConstructorEntry[position() > 1]">
+         <xsl:text> , </xsl:text>
+         <xsl:apply-templates select="."/>
+       </xsl:for-each>
+     </xsl:if>
+     <xsl:text> } </xsl:text>
+  </xsl:template>
+		case "mapConstructorEntry":
+    <xsl:apply-templates select="*[1]"/>
+    <xsl:text> : </xsl:text>
+    <xsl:apply-templates select="*[2]"/>
+  </xsl:template>
+  */
+		case "arrayConstructor":
+			return Fleur.Serializer.XQX_renderChildren(node);
+			/*
+		case "squareArray":
+    <xsl:text> [ </xsl:text>
+    <xsl:apply-templates select="xqx:arrayElem[1]"/>
+    <xsl:if test="xqx:arrayElem[2]">
+      <xsl:for-each select="xqx:arrayElem[position() > 1]">
+        <xsl:text> , </xsl:text>
+        <xsl:apply-templates select="."/>
+      </xsl:for-each>
+    </xsl:if>
+    <xsl:text> ] </xsl:text>
+  </xsl:template>
+  */
+		case "curlyArray":
+			return " array { " + Fleur.Serializer.XQX_renderChildren(node) + " } ";
+		case "star":
+			return "*";
+			/*
+		case "Wildcard[*]":
+    <xsl:choose>
+      <xsl:when test="local-name(./child::*[1])='star'">
+        <xsl:apply-templates select="xqx:star"/>
+        <xsl:value-of select="$COLON"/>
+        <xsl:apply-templates select="xqx:NCName"/>
+      </xsl:when>
+      <xsl:when test="local-name(./child::*[1])='NCName'">
+        <xsl:apply-templates select="xqx:NCName"/>
+        <xsl:value-of select="$COLON"/>
+        <xsl:apply-templates select="xqx:star"/>
+      </xsl:when>
+      <xsl:when test="local-name(./child::*[1])='uri'">
+        <xsl:text>Q</xsl:text>
+        <xsl:value-of select="$LBRACE"/>
+        <xsl:value-of select="./xqx:uri"/>
+        <xsl:value-of select="$RBRACE"/>
+        <xsl:apply-templates select="xqx:star"/>
+      </xsl:when>
+    </xsl:choose>
+  </xsl:template>
+		case "Wildcard[not(*)]":
+    <xsl:value-of select="$STAR"/>
+  </xsl:template>
+
+
+  <xsl:template name="simpleWildcard" match="xqx:simpleWildcard">
+    <xsl:apply-templates select="xqx:star"/>
+    <xsl:apply-templates select="xqx:QName"/>
+  </xsl:template>
+		case "textTest":
+    <xsl:text>text()</xsl:text>
+  </xsl:template>
+		case "commentTest":
+    <xsl:text>comment()</xsl:text>
+  </xsl:template>
+		case "namespaceTest":
+    <xsl:text>namespace-node()</xsl:text>
+  </xsl:template>
+		case "anyKindTest":
+    <xsl:text>node()</xsl:text>
+  </xsl:template>
+		case "piTest":
+    <xsl:text>processing-instruction</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:value-of select="*"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "documentTest":
+    <xsl:text>document-node</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+  */
+		case "nameTest":
+			return Fleur.Serializer.XQX_renderEQName(node);
+  /*
+		case "attributeTest":
+    <xsl:text>attribute</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:for-each select="xqx:attributeName">
+      <xsl:call-template name="simpleWildcard"/>
+    </xsl:for-each>
+    <xsl:if test="xqx:typeName">
+      <xsl:value-of select="$COMMA"/>
+      <xsl:apply-templates select="xqx:typeName"/>
+    </xsl:if>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "elementTest":
+    <xsl:text>element</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:for-each select="xqx:elementName">
+      <xsl:call-template name="simpleWildcard"/>
+    </xsl:for-each>
+    <xsl:if test="xqx:typeName">
+      <xsl:value-of select="$COMMA"/>
+      <xsl:apply-templates select="xqx:typeName"/>
+    </xsl:if>
+    <xsl:if test="xqx:nillable">
+      <xsl:value-of select="$QUESTIONMARK"/>
+    </xsl:if>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "schemaElementTest":
+    <xsl:text>schema-element</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:call-template name="renderEQName"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "schemaAttributeTest":
+    <xsl:text>schema-attribute</xsl:text>
+    <xsl:value-of select="$LPAREN"/>
+    <xsl:call-template name="renderEQName"/>
+    <xsl:value-of select="$RPAREN"/>
+  </xsl:template>
+		case "anyFunctionTest":
+    <xsl:apply-templates select="xqx:annotation"/>
+    <xsl:text> function(*)</xsl:text>
+  </xsl:template>
+		case "typedFunctionTest":
+    <xsl:apply-templates select="xqx:annotation"/>
+    <xsl:text> function</xsl:text>
+    <xsl:apply-templates select="xqx:paramTypeList"/>
+    <xsl:text> as </xsl:text>
+    <xsl:apply-templates select="xqx:sequenceType"/>
+  </xsl:template>
+		case "paramTypeList":
+    <xsl:call-template name="parenthesizedList"/>
+  </xsl:template>
+		case "anyMapTest":
+    <xsl:text> map(*)</xsl:text>
+  </xsl:template>
+		case "typedMapTest":
+    <xsl:text> map(</xsl:text>
+    <xsl:apply-templates select="xqx:atomicType"/>
+    <xsl:text>, </xsl:text>
+    <xsl:apply-templates select="xqx:sequenceType"/>
+    <xsl:text>) </xsl:text>
+  </xsl:template>
+		case "lookup":
+    <xsl:text> ?</xsl:text>
+    <xsl:apply-templates/>
+  </xsl:template>
+		case "arrowPostfix":
+    <xsl:text> => </xsl:text>
+    <xsl:apply-templates select="*[not(self::xqx:arguments)]"/>
+    <xsl:if test="xqx:arguments">
+      <xsl:for-each select="xqx:arguments">
+        <xsl:call-template name="parenthesizedList"/>
+      </xsl:for-each>
+    </xsl:if>
+  </xsl:template>
+		case "anyArrayTest":
+    <xsl:text> array(*)</xsl:text>
+  </xsl:template>
+		case "typedArrayTest":
+    <xsl:text> array(</xsl:text>
+    <xsl:apply-templates select="xqx:sequenceType"/>
+    <xsl:text>) </xsl:text>
+  </xsl:template>
+		case "parenthesizedItemType":
+    <xsl:text> ( </xsl:text>
+    <xsl:apply-templates/>
+    <xsl:text> ) </xsl:text>
+  </xsl:template>
+  */
+		case "stepExpr":
+			s = "";
+			n = node.previousSibling;
+			while (n) {
+				if (n.localName === "stepExpr" && n.namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s = "/";
+					break;
+				}
+				n = n.previousSibling;
+			}
+			return s + Fleur.Serializer.XQX_renderChildren(node);
+			/*
+		case "filterExpr":
+    <xsl:apply-templates/>
+  </xsl:template>
+		case "namedFunctionRef":
+    <xsl:apply-templates select="xqx:functionName"/>
+    <xsl:text>#</xsl:text>
+    <xsl:apply-templates select="xqx:integerConstantExpr"/>
+  </xsl:template>
+		case "inlineFunctionExpr":
+    <xsl:apply-templates select="xqx:annotation"/>
+    <xsl:text> function </xsl:text>
+    <xsl:apply-templates select="xqx:paramList"/>
+    <xsl:apply-templates select="xqx:typeDeclaration"/>
+    <xsl:apply-templates select="xqx:functionBody"/>
+  </xsl:template>
+  */
+		case "pathExpr":
+			return Fleur.Serializer.XQX_renderChildren(node, ["rootExpr", "stepExpr"]);
+			/*
+		case "attributeConstructor":
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates select="xqx:attributeName"/>
+    <xsl:value-of select="$EQUAL"/>
+    <xsl:choose>
+      <xsl:when test="xqx:attributeValue">
+        <xsl:call-template name="globalReplace">
+          <xsl:with-param name="stringToBeFixed">
+            <xsl:call-template name="globalReplace">
+              <xsl:with-param name="stringToBeFixed">
+                <xsl:call-template name="quote">
+                  <xsl:with-param name="item">
+                    <xsl:call-template name="globalReplace">
+                      <xsl:with-param name="stringToBeFixed">
+                        <xsl:call-template name="globalReplace">
+                          <xsl:with-param name="stringToBeFixed">
+                            <xsl:value-of select="xqx:attributeValue"/>
+                          </xsl:with-param>
+                          <xsl:with-param name="toBeReplaced"><xsl:text>{</xsl:text></xsl:with-param>
+                          <xsl:with-param name="replacement"><xsl:text>{{</xsl:text></xsl:with-param>
+                        </xsl:call-template>
+                      </xsl:with-param>
+                      <xsl:with-param name="toBeReplaced"><xsl:text>}</xsl:text></xsl:with-param>
+                      <xsl:with-param name="replacement"><xsl:text>}}</xsl:text></xsl:with-param>
+                    </xsl:call-template>
+                  </xsl:with-param>
+                </xsl:call-template>
+              </xsl:with-param>
+              <xsl:with-param name="toBeReplaced" select="'&#xA;'"/>
+              <xsl:with-param name="replacement">&amp;#xA;</xsl:with-param>
+            </xsl:call-template>
+          </xsl:with-param>
+          <xsl:with-param name="toBeReplaced" select="'&#x9;'"/>
+          <xsl:with-param name="replacement">&amp;#x9;</xsl:with-param>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$DOUBLEQUOTE"/>
+        <xsl:for-each select="./xqx:attributeValueExpr/xqx:*">
+          <xsl:value-of select="$LBRACE"/>
+            <xsl:apply-templates select="."/>
+          <xsl:value-of select="$RBRACE"/>
+        </xsl:for-each>
+        <xsl:value-of select="$DOUBLEQUOTE"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+		case "namespaceDeclaration":
+    <xsl:text> xmlns</xsl:text>
+    <xsl:if test="xqx:prefix">
+      <xsl:text>:</xsl:text>
+      <xsl:value-of select="xqx:prefix"/>
+    </xsl:if>
+    <xsl:value-of select="$EQUAL"/>
+    <xsl:call-template name="quote">
+       <xsl:with-param name="item">
+         <xsl:call-template name="globalReplace">
+           <xsl:with-param name="stringToBeFixed">
+             <xsl:call-template name="globalReplace">
+               <xsl:with-param name="stringToBeFixed">
+                 <xsl:value-of select="xqx:uri"/>
+               </xsl:with-param>
+               <xsl:with-param name="toBeReplaced">
+                 <xsl:text>{</xsl:text>
+               </xsl:with-param>
+               <xsl:with-param name="replacement">
+                 <xsl:text>{{</xsl:text>
+               </xsl:with-param>
+             </xsl:call-template>
+           </xsl:with-param>
+           <xsl:with-param name="toBeReplaced">
+             <xsl:text>}</xsl:text>
+           </xsl:with-param>
+           <xsl:with-param name="replacement">
+             <xsl:text>}}</xsl:text>
+           </xsl:with-param>
+         </xsl:call-template>
+       </xsl:with-param>
+    </xsl:call-template>
+  </xsl:template>
+		case "attributeList":
+    <xsl:apply-templates select="*"/>
+  </xsl:template>
+		case "elementContent":
+    <xsl:for-each select="*">
+      <xsl:if test="not(self::xqx:elementConstructor)">
+        <xsl:value-of select="$SPACE"/>
+        <xsl:value-of select="$LBRACE"/>
+      </xsl:if>
+      <xsl:apply-templates select="."/>
+      <xsl:if test="not(self::xqx:elementConstructor)">
+        <xsl:value-of select="$SPACE"/>
+        <xsl:value-of select="$RBRACE"/>
+      </xsl:if>
+    </xsl:for-each>
+  </xsl:template>
+		case "elementConstructor":
+    <xsl:value-of select="$LESSTHAN"/>
+    <xsl:apply-templates select="xqx:tagName"/>
+    <xsl:apply-templates select="xqx:attributeList"/>
+    <xsl:value-of select="$GREATERTHAN"/>
+    <xsl:apply-templates select="xqx:elementContent"/>
+    <xsl:value-of select="$LESSTHAN"/>
+    <xsl:value-of select="$SLASH"/>
+    <xsl:apply-templates select="xqx:tagName"/>
+    <xsl:value-of select="$GREATERTHAN"/>
+  </xsl:template>
+		case "tagNameExpr":
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "computedElementConstructor":
+    <xsl:text> element </xsl:text>
+    <xsl:apply-templates select="xqx:tagName"/>
+    <xsl:apply-templates select="xqx:tagNameExpr"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:apply-templates select="xqx:contentExpr"/>     
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "contentExpr":
+    <xsl:apply-templates/>
+  </xsl:template>
+		case "computedAttributeConstructor":
+    <xsl:text> attribute </xsl:text>
+    <xsl:apply-templates select="xqx:tagName"/>
+    <xsl:apply-templates select="xqx:tagNameExpr"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="xqx:valueExpr"/>     
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "computedDocumentConstructor":
+    <xsl:text> document {</xsl:text>
+    <xsl:apply-templates select="*"/>
+    <xsl:text> }</xsl:text>
+  </xsl:template>
+		case "computedTextConstructor":
+    <xsl:text> text</xsl:text>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "computedCommentConstructor":
+    <xsl:text> comment</xsl:text>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "computedNamespaceConstructor":
+    <xsl:text> namespace </xsl:text>
+    <xsl:choose>
+      <xsl:when test="xqx:prefix">
+        <xsl:value-of select="xqx:prefix"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$LBRACE"/>
+        <xsl:apply-templates select="xqx:prefixExpr"/>
+        <xsl:value-of select="$RBRACE"/>
+      </xsl:otherwise>
+    </xsl:choose>
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="xqx:URIExpr"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "piTargetExpr":
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="*"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "piValueExpr":
+    <xsl:apply-templates select="*"/>
+  </xsl:template>
+		case "computedPIConstructor":
+    <xsl:text> processing-instruction </xsl:text>
+    <xsl:value-of select="xqx:piTarget"/>
+    <xsl:apply-templates select="xqx:piTargetExpr"/>
+    <xsl:value-of select="$LBRACE"/>
+    <xsl:apply-templates select="xqx:piValueExpr"/>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "unorderedExpr":
+    <xsl:text> unordered</xsl:text>
+        <xsl:value-of select="$LBRACE"/>
+    <xsl:text> </xsl:text>
+    <xsl:apply-templates select="*"/>
+    <xsl:text> </xsl:text>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "orderedExpr":
+    <xsl:text> ordered</xsl:text>
+        <xsl:value-of select="$LBRACE"/>
+    <xsl:text> </xsl:text>
+    <xsl:apply-templates select="*"/>
+    <xsl:text> </xsl:text>
+    <xsl:value-of select="$RBRACE"/>
+  </xsl:template>
+		case "versionDecl":
+    <xsl:text>xquery </xsl:text>
+    <xsl:if test="xqx:version">
+      <xsl:text>version </xsl:text>
+      <xsl:call-template name="quote">
+        <xsl:with-param name="item" select="xqx:version"/>
+      </xsl:call-template>
+    </xsl:if>
+    <xsl:if test="xqx:encoding and xqx:version">
+      <xsl:value-of select="$SPACE"/>
+    </xsl:if>
+    <xsl:if test="xqx:encoding">
+      <xsl:text>encoding </xsl:text>
+      <xsl:call-template name="quote">
+        <xsl:with-param name="item" select="xqx:encoding"/>
+      </xsl:call-template>
+    </xsl:if>
+    <xsl:value-of select="$SEPARATOR"/>
+    <xsl:value-of select="$NEWLINE"/>
+  </xsl:template>
+  */
+		case "namespaceDecl":
+ 			s = "declare namespace ";
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "prefix" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += node.children[i].textContent;
+					break;
+				}
+				i++;
+			}
+			s += "=";
+			i = 0;
+			while (i < l) {
+				if (node.children[i].localName === "uri" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					return s + Fleur.Serializer.XQX_quote(node.children[i].textContent);
+				}
+				i++;
+			}
+			return s;
+		case "defaultNamespaceDecl":
+			s = "declare default ";
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "defaultNamespaceCategory" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += node.children[i].textContent;
+					break;
+				}
+				i++;
+			}
+			s += " namespace ";
+			i = 0;
+			while (i < l) {
+				if (node.children[i].localName === "uri" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					return s + Fleur.Serializer.XQX_quote(node.children[i].textContent);
+				}
+				i++;
+			}
+			return s;
+		case "boundarySpaceDecl":
+			return "declare boundary-space " + node.textContent;
+		case "defaultCollationDecl":
+			return "declare default collation " + Fleur.Serializer.XQX_quote(node.textContent);
+		case "baseUriDecl":
+			return "declare base-uri " + Fleur.Serializer.XQX_quote(node.textContent);
+		case "constructionDecl":
+			return "declare construction " + node.textContent;
+		case "orderingModeDecl":
+			return "declare ordering " + node.textContent;
+		case "emptyOrderingDecl":
+			return "declare default order " + node.textContent;
+			/*
+		case "copyNamespacesDecl":
+    <xsl:text>declare copy-namespaces </xsl:text>
+    <xsl:value-of select="xqx:preserveMode"/>
+    <xsl:value-of select="$COMMA"/>
+    <xsl:value-of select="xqx:inheritMode"/>
+  </xsl:template>
+  */
+		case "optionDecl":
+			s = "declare option " + Fleur.Serializer.XQX_renderChildren(node, ["optionName"]) + " ";
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "optionContents" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += Fleur.Serializer.XQX_quote(node.children[i].textContent);
+					break;
+				}
+				i++;
+			}
+			return s;
+			/*
+		case "decimalFormatDecl":
+    <xsl:text>declare </xsl:text>
+    <xsl:if test="not(xqx:decimalFormatName)">
+      <xsl:text>default </xsl:text>
+    </xsl:if>
+    <xsl:text>decimal-format </xsl:text>
+    <xsl:if test="xqx:decimalFormatName">
+      <xsl:apply-templates select="xqx:decimalFormatName"/>
+      <xsl:text> </xsl:text>
+    </xsl:if>
+    <xsl:apply-templates select="xqx:decimalFormatParam"/>
+  </xsl:template>
+  */
+		case "decimalFormatParam":
+			s = Fleur.Serializer.XQX_renderChildren(node, ["decimalFormatParamName"]) + " = ";
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "decimalFormatParamValue" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += Fleur.Serializer.XQX_quote(node.children[i].textContent);
+					break;
+				}
+				i++;
+			}
+			return s + " ";
+		case "voidSequenceType":
+			return "empty-sequence()";
+		case "occurrenceIndicator":
+			return node.textContent;
+		case "anyItemType":
+			return "item()";
+		case "sequenceType":
+			return Fleur.Serializer.XQX_renderChildren(node);
+			/*
+		case "sequenceTypeUnion":
+    <xsl:apply-templates select="xqx:sequenceType[1]"/>
+    <xsl:if test="count(xqx:sequenceType) > 1">
+      <xsl:for-each select="xqx:sequenceType[position() > 1]">
+        <xsl:text> | </xsl:text>
+        <xsl:apply-templates select="."/>
+      </xsl:for-each>
+    </xsl:if>
+  </xsl:template>
+		case "singleType":
+    <xsl:apply-templates select="xqx:atomicType"/>
+    <xsl:if test="xqx:optional">
+      <xsl:text>?</xsl:text>
+    </xsl:if>
+  </xsl:template>
+  */
+		case "typeDeclaration":
+		case "contextItemType":
+			return " as " + Fleur.Serializer.XQX_renderChildren(node);
+			/*
+		case "contextItemDecl":
+    <xsl:text>declare context item </xsl:text>
+    <xsl:apply-templates select="xqx:contextItemType"/>
+    <xsl:if test="xqx:varValue">
+      <xsl:value-of select="$SPACE"/>
+      <xsl:value-of select="$ASSIGN"/>
+      <xsl:value-of select="$SPACE"/>
+      <xsl:apply-templates select="xqx:varValue"/>
+    </xsl:if>
+    <xsl:if test="xqx:external">
+      <xsl:text> external </xsl:text>
+      <xsl:if test="xqx:external/xqx:varValue">
+        <xsl:text>:= </xsl:text>
+        <xsl:apply-templates select="xqx:external/xqx:varValue"/>
+      </xsl:if>
+    </xsl:if>
+  </xsl:template>
+		case "annotation":
+    <xsl:value-of select="$SPACE"/>
+    <xsl:value-of select="$PERCENT"/>
+    <xsl:apply-templates select="xqx:annotationName"/>
+    <xsl:if test="xqx:arguments">
+      <xsl:for-each select="xqx:arguments">
+         <xsl:call-template name="parenthesizedList"/>
+      </xsl:for-each>
+    </xsl:if>
+  </xsl:template>
+		case "varDecl":
+    <xsl:text>declare</xsl:text>
+    <xsl:apply-templates select="xqx:annotation"/>
+    <xsl:text> variable </xsl:text>
+    <xsl:value-of select="$DOLLAR"/>
+    <xsl:apply-templates select="xqx:varName"/>
+    <xsl:apply-templates select="xqx:typeDeclaration"/>
+    <xsl:if test="xqx:varValue">
+      <xsl:value-of select="$ASSIGN"/>
+      <xsl:apply-templates select="xqx:varValue"/>
+    </xsl:if>
+    <xsl:if test="xqx:external">
+      <xsl:text> external </xsl:text>
+      <xsl:if test="xqx:external/xqx:varValue">
+        <xsl:text>:= </xsl:text>
+        <xsl:apply-templates select="xqx:external/xqx:varValue"/>
+      </xsl:if>
+    </xsl:if>
+  </xsl:template>
+		case "targetLocation":
+    <xsl:choose>
+      <xsl:when test="position()=1"> at </xsl:when>
+      <xsl:otherwise>,&#xD;  </xsl:otherwise>
+    </xsl:choose>
+    <xsl:call-template name="quote">
+      <xsl:with-param name="item" select="."/>
+    </xsl:call-template>
+  </xsl:template>
+		case "schemaImport":
+    <xsl:text> import schema </xsl:text>
+    <xsl:if test="xqx:defaultElementNamespace">
+      <xsl:text> default element namespace </xsl:text>
+    </xsl:if>
+    <xsl:if test="xqx:namespacePrefix">
+      <xsl:text> namespace </xsl:text>
+      <xsl:value-of select="xqx:namespacePrefix"/>
+      <xsl:value-of select="$EQUAL"/>
+    </xsl:if>
+    <xsl:call-template name="quote">
+      <xsl:with-param name="item" select="xqx:targetNamespace"/>
+    </xsl:call-template>
+    <xsl:apply-templates select="xqx:targetLocation"/>
+  </xsl:template>
+		case "moduleImport":
+    <xsl:text> import module </xsl:text>
+    <xsl:if test="xqx:namespacePrefix">
+      <xsl:text> namespace </xsl:text>
+      <xsl:value-of select="xqx:namespacePrefix"/>
+      <xsl:value-of select="$EQUAL"/>
+    </xsl:if>
+    <xsl:call-template name="quote">
+      <xsl:with-param name="item" select="xqx:targetNamespace"/>
+    </xsl:call-template>
+    <xsl:apply-templates select="xqx:targetLocation"/>
+  </xsl:template>
+  */
+		case "param":
+			return "$" + Fleur.Serializer.XQX_renderChildren(node, ["varName"]) + Fleur.Serializer.XQX_renderChildren(node, ["typeDeclaration"]);
+		case "paramList":
+			return Fleur.Serializer.XQX_parenthesizedList(node);
+		case "functionBody":
+			return "\n{\n" + Fleur.Serializer.XQX_renderChildren(node) + "\n}";
+		case "functionDecl":
+			s = "declare" + Fleur.Serializer.XQX_renderChildren(node, ["annotation"]) + " function " + Fleur.Serializer.XQX_renderChildren(node, ["functionName"]) + Fleur.Serializer.XQX_renderChildren(node, ["paramList"]) + Fleur.Serializer.XQX_renderChildren(node, ["typeDeclaration"]);
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "externalDefinition" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					return s + " external ";
+				}
+				i++;
+			}
+			return s + Fleur.Serializer.XQX_renderChildren(node, ["functionBody"]);
+		case "queryBody":
+			return Fleur.Serializer.XQX_renderChildren(node) + "\n";
+		case "moduleDecl":
+			s = " module namespace ";
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "prefix" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += node.children[i].textContent;
+					break;
+				}
+				i++;
+			}
+			s += "=";
+			i = 0;
+			l = node.children.length;
+			while (i < l) {
+				if (node.children[i].localName === "uri" && node.children[i].namespaceURI === "http://www.w3.org/2005/XQueryX") {
+					s += Fleur.Serializer.XQX_quote(node.children[i].textContent);
+					break;
+				}
+				i++;
+			}
+			return s + ";\n";
+		case "prolog":
+			s = "";
+			l = node.children.length;
+			while (i < l) {
+				s += Fleur.Serializer._serializeXQXToString(node.children[i]) + ";\n";
+				i++;
+			}
+			return s + ";\n";
+		case "libraryModule":
+			return Fleur.Serializer.XQX_renderChildren(node, ["moduleDecl"]) + Fleur.Serializer.XQX_renderChildren(node, ["prolog"]);
+		case "mainModule":
+			return Fleur.Serializer.XQX_renderChildren(node, ["prolog"]) + Fleur.Serializer.XQX_renderChildren(node, ["queryBody"]);
+		case "module":
+			return Fleur.Serializer.XQX_renderChildren(node);
+	}
+};
 Fleur.Serializer.prototype.serializeToString = function(node, mediatype, indent) {
-	var media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length, ser;
+	var media = mediatype.split(";"), config = {}, param, paramreg = /^\s*(\S*)\s*=\s*(\S*)\s*$/, i = 1, l = media.length, handler;
 	while (i < l) {
 		param = paramreg.exec(media[i]);
 		config[param[1]] = param[2];
 		i++;
 	}
-	switch (media[0].replace(/^\s+|\s+$/gm,'')) {
-		case "text/xml":
-		case "application/xml":
-			var ser = this._serializeXMLToString(node, indent, "");
-			if (indent && ser.charAt(ser.length - 1) === "\n") {
-				ser = ser.substr(0, ser.length - 1);
-			}
-			return ser;
-		case "text/csv":
-			ser = this._serializeCSVToString(node, config.header === "present", config.key ? parseInt(config.key, 10) : null, config.separator ? decodeURIComponent(config.separator) : ",", 0);
-			return ser;
-		case "application/json":
-		case "text/json":
-			var ser = this._serializeJSONToString(node, indent, "", "");
-			if (indent && ser.charAt(ser.length - 1) === "\n") {
-				ser = ser.substr(0, ser.length - 1);
-			}
-			return ser;
+	handler = Fleur.Serializer.Handlers[media[0].replace(/^\s+|\s+$/gm,'')];
+	if (!handler) {
+		return "";
 	}
+	return handler(node, indent, config);
 };
+Fleur.Serializer.Handlers = {
+	"application/xml": function(node, indent) {
+		var ser = Fleur.Serializer._serializeXMLToString(node, indent, "");
+		if (indent && ser.charAt(ser.length - 1) === "\n") {
+			ser = ser.substr(0, ser.length - 1);
+		}
+		return ser;
+	},
+	"application/exml+xml": function(node, indent) {
+		var ser = Fleur.Serializer._serializeEXMLToString(node, indent, "");
+		if (indent && ser.charAt(ser.length - 1) === "\n") {
+			ser = ser.substr(0, ser.length - 1);
+		}
+		return ser;
+	},
+	"application/xquery": function(node) {
+		return Fleur.Serializer._serializeXQXToString(node);
+	},
+	"text/csv": function(node, indent, config) {
+		var ser = Fleur.Serializer._serializeCSVToString(node, config.header === "present", config.key ? parseInt(config.key, 10) : null, config.separator ? decodeURIComponent(config.separator) : ",", 0);
+		return ser;
+	},
+	"application/json": function(node, indent) {
+		var ser = Fleur.Serializer._serializeJSONToString(node, indent, "", false, "");
+		if (indent && ser.charAt(ser.length - 1) === "\n") {
+			ser = ser.substr(0, ser.length - 1);
+		}
+		return ser;
+	},
+};
+Fleur.Serializer.Handlers["text/xml"] = Fleur.Serializer.Handlers["application/xml"];
+Fleur.Serializer.Handlers["application/xquery+xml"] = Fleur.Serializer.Handlers["application/xml"];
+Fleur.Serializer.Handlers["text/json"] = Fleur.Serializer.Handlers["application/json"];
 
 Fleur.XMLSerializer = function() {};
 Fleur.XMLSerializer.prototype = new Fleur.Serializer();
@@ -3395,6 +5598,9 @@ Fleur.XQueryXNames[1][Fleur.XQueryX.xqx = Fleur.Xlength++] = [2, 1, "xmlns:xqx"]
 Fleur.XQueryXNames[1][Fleur.XQueryX.xsi = Fleur.Xlength++] = [2, 1, "xmlns:xsi"];
 Fleur.XQueryXNames[1][Fleur.XQueryX.schemaLocation = Fleur.Xlength++] = [2, 2, "xsi:schemaLocation"];
 
+Fleur.error = function(ctx, name) {
+	Fleur.XQueryEngine[Fleur.XQueryX.functionCallExpr](ctx, [[Fleur.XQueryX.functionName,['error']],[Fleur.XQueryX.arguments,[[Fleur.XQueryX.functionCallExpr,[[Fleur.XQueryX.functionName,['QName']],[Fleur.XQueryX.arguments,[[Fleur.XQueryX.stringConstantExpr,[[Fleur.XQueryX.value,['http://www.w3.org/2005/xqt-errors']]]],[Fleur.XQueryX.stringConstantExpr,[[Fleur.XQueryX.value,['err:' + name]]]]]]]]]]]);
+};
 Fleur.toJSNumber = function(ctx) {
 	if (ctx._result.nodeType === Fleur.Node.TEXT_NODE) {
 		if (ctx._result.schemaTypeInfo === Fleur.Type_integer) {
@@ -3416,47 +5622,57 @@ Fleur.toJSNumber = function(ctx) {
 		} else if (ctx._result.schemaTypeInfo === Fleur.Type_error) {
 			return [-1];
 		}
-		ctx._result.schemaTypeInfo = Fleur.Type_error;
-		ctx._result.data = "XPTY0004";
+		Fleur.error(ctx, "XPTY0004");
 		return [-1];
 	} else if (ctx._result.nodeType === Fleur.Node.SEQUENCE_NODE) {
-		ctx._result = new Fleur.Text();
-		ctx._result.schemaTypeInfo = Fleur.Type_error;
-		ctx._result.data = "XPST0005";
+		Fleur.error(ctx, "XPST0005");
 		return [-1];
+	}
+	Fleur.error(ctx, "XPTY0004");
+	return [-1];
+}
+Fleur.toJSString = function(ctx) {
+	if (ctx._result.schemaTypeInfo === Fleur.Type_string || ctx._result.schemaTypeInfo === Fleur.Type_anyURI || ctx._result.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		return [0, ctx._result.data];
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "string", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "anyURI", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "untypedAtomic", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		return [0, ctx._result.data];
 	}
 	ctx._result = new Fleur.Text();
 	ctx._result.schemaTypeInfo = Fleur.Type_error;
 	ctx._result.data = "XPTY0004";
 	return [-1];
 }
-Fleur.toJSBoolean = function(node) {
+Fleur.toJSBoolean = function(ctx) {
 	var value;
-	if (node.nodeType === Fleur.Node.SEQUENCE_NODE) {
-		return node.childNodes.length !== 0;
-	} else if (node.schemaTypeInfo === Fleur.Type_boolean) {
-		return node.data === "true";
-	} else if (node.schemaTypeInfo === Fleur.Type_string || node.schemaTypeInfo === Fleur.Type_anyURI || node.schemaTypeInfo === Fleur.Type_untypedAtomic) {
-		return node.data.length !== 0;
-	} else if (node.schemaTypeInfo === Fleur.Type_integer) {
-		value = parseInt(node.data, 10);
-		return value !== NaN && value !== 0;
-	} else if (node.schemaTypeInfo === Fleur.Type_decimal || node.schemaTypeInfo === Fleur.Type_float || node.schemaTypeInfo === Fleur.Type_double) {
+	if (ctx._result.nodeType === Fleur.Node.SEQUENCE_NODE) {
+		return [0, ctx._result.childNodes.length !== 0];
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_boolean) {
+		return [0, ctx._result.data === "true"];
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_string || ctx._result.schemaTypeInfo === Fleur.Type_anyURI || ctx._result.schemaTypeInfo === Fleur.Type_untypedAtomic) {
+		return [0, ctx._result.data.length !== 0];
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_integer) {
+		value = parseInt(ctx._result.data, 10);
+		return [0, value !== NaN && value !== 0];
+	} else if (ctx._result.schemaTypeInfo === Fleur.Type_decimal || ctx._result.schemaTypeInfo === Fleur.Type_float || ctx._result.schemaTypeInfo === Fleur.Type_double) {
+		value = parseFloat(ctx._result.data);
+		return [0, value !== NaN && value !== 0];
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "boolean", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		return [0, ctx._result.data === "true"];
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "string", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "anyURI", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "untypedAtomic", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		return [0, ctx._result.data.length !== 0];
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
+		value = parseInt(ctx._result.data, 10);
+		return [0, value !== NaN && value !== 0];
+	} else if (ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "decimal", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "float", Fleur.TypeInfo.DERIVATION_RESTRICTION) || ctx._result.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "double", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
 		value = parseFloat(node.data);
-		return value !== NaN && value !== 0;
-	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "boolean", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
-		return node.data === "true";
-	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "string", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "anyURI", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "untypedAtomic", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
-		return node.data.length !== 0;
-	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "integer", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
-		value = parseInt(node.data, 10);
-		return value !== NaN && value !== 0;
-	} else if (node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "decimal", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "float", Fleur.TypeInfo.DERIVATION_RESTRICTION) || node.schemaTypeInfo.isDerivedFrom("http://www.w3.org/2001/XMLSchema", "double", Fleur.TypeInfo.DERIVATION_RESTRICTION)) {
-		value = parseFloat(node.data);
-		return value !== NaN && value !== 0;
+		return [0, value !== NaN && value !== 0];
 	}
-	return false;
+	ctx._result = new Fleur.Text();
+	ctx._result.schemaTypeInfo = Fleur.Type_error;
+	ctx._result.data = "XPTY0004";
+	return [-1];
 }
+
 Fleur.XQueryEngine = [];
 Fleur.XQueryEngine[Fleur.XQueryX.NCName] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.QName] = function(ctx, children) {};
@@ -3477,11 +5693,13 @@ Fleur.XQueryEngine[Fleur.XQueryX.Wildcard] = function(ctx, children) {
 Fleur.XQueryEngine[Fleur.XQueryX.addOp] = function(ctx, children) {
 	var op1, op2;
 	Fleur.XQueryEngine[children[0][1][0][0]](ctx, children[0][1][0][1]);
+	Fleur.Atomize(ctx);
 	op1 = Fleur.toJSNumber(ctx);
 	if (op1[0] < 0) {
 		return;
 	}
 	Fleur.XQueryEngine[children[1][1][0][0]](ctx, children[1][1][0][1]);
+	Fleur.Atomize(ctx);
 	op2 = Fleur.toJSNumber(ctx);
 	if (op2[0] < 0) {
 		return;
@@ -3618,7 +5836,22 @@ Fleur.XQueryEngine[Fleur.XQueryX.forClauseItem] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.forExpr] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.forLetClauseItemExtensions] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.functionBody] = function(ctx, children) {};
-Fleur.XQueryEngine[Fleur.XQueryX.functionCallExpr] = function(ctx, children) {};
+Fleur.XQueryEngine[Fleur.XQueryX.functionCallExpr] = function(ctx, children) {
+	var fname = children[0][1][0];
+	var uri = "http://www.w3.org/2005/xpath-functions";
+	if (children[0][1][1]) {
+		if (children[0][1][1][0] === Fleur.XQueryX.URI) {
+			uri = children[0][1][1][1][0];
+		} else if (children[0][1][1][0] === Fleur.XQueryX.prefix && ctx.nsresolver) {
+			uri = ctx.nsresolver.lookupNamespaceURI(children[0][1][1][1][0]);
+		}
+	}
+	if (!uri || !Fleur.XPathFunctions[uri][fname]) {
+		Fleur.error(ctx, "XPST0017");
+		return;
+	}
+	Fleur.XPathFunctions[uri][fname](ctx, children[1][1]);
+};
 Fleur.XQueryEngine[Fleur.XQueryX.functionDecl] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.functionItem] = function(ctx, children) {};
 Fleur.XQueryEngine[Fleur.XQueryX.functionName] = function(ctx, children) {};
@@ -3766,7 +5999,7 @@ Fleur.XQueryEngine[Fleur.XQueryX.pathExpr] = function(ctx, children) {
 		curr = ctx._curr;
 		l = ctx._result.length;
 		i = 0;
-		prevstep = ctx._result.slice();
+		prevstep = ctx._result.slice(0);
 		result = ctx._result = [];
 		while (i < l) {
 			ctx._curr = prevstep[i];
@@ -4435,7 +6668,7 @@ Fleur.XsltXNames[1][Fleur.XsltX.xsltx = Fleur.Xlength++] = [2, 1, "xmlns:xsltx"]
 Fleur.XsltXNames[1][Fleur.XsltX.avtx = Fleur.Xlength++] = [2, 1, "xmlns:avtx"];
 Fleur.XsltXNames[1][Fleur.XsltX.patternx = Fleur.Xlength++] = [2, 1, "xmlns:patternx"];
 
-Fleur.XsltEngine = Fleur.XQueryEngine.slice();
+Fleur.XsltEngine = Fleur.XQueryEngine.slice(0);
 Fleur.XsltEngine[Fleur.XsltX.accept] = function(ctx, children) {};
 Fleur.XsltEngine[Fleur.XsltX.accumulator] = function(ctx, children) {};
 Fleur.XsltEngine[Fleur.XsltX.assert] = function(ctx, children) {};
@@ -5223,11 +7456,6 @@ Fleur.XPathEvaluator._xp2js = function(xp, args, ops) {
 		return Fleur.XPathEvaluator._xp2js(xp3, args3, (opprec.length + 1 + op.length) + "." + opprec + "." + op + ops3);
 	}
 	return "~~~~Unknown operator at '" + f + "'~#~#";
-};
-Fleur.XPathEvaluator.prototype.createExpression = function(expression, resolver) {
-	expression = expression || "";
-//	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"],[Fleur.XQueryX.schemaLocation,"http://www.w3.org/2005/XQueryX http://www.w3.org/2005/XQueryX/xqueryx.xsd"],[Fleur.XQueryX.xsi,"http://www.w3.org/2001/XMLSchema-instance"]]]';
-	return '[Fleur.XQueryX.module,[[Fleur.XQueryX.mainModule,[[Fleur.XQueryX.queryBody,[' + Fleur.XPathEvaluator._xp2js(expression, "", "") + ']]]],[Fleur.XQueryX.xqx,"http://www.w3.org/2005/XQueryX"]]]';
 };
 
 Fleur.GrammarParser = function() {};
